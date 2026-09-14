@@ -30,7 +30,7 @@
       <div class="grid">
         <article class="chart-panel">
           <div class="label">PRICE · 1 MINUTE BARS <span id="lastPrice">$100.00</span></div>
-          <canvas id="market" aria-label="Synthetic candlestick market"></canvas>
+          <div id="market" role="img" aria-label="Gráfico interactivo de velas del mercado sintético"></div>
           <div class="legend"><span><i class="buy"></i> BUY</span><span><i class="sell"></i> SELL</span><span><i class="hold"></i> HOLD</span></div>
         </article>
         <article class="brain-panel">
@@ -50,7 +50,7 @@
     </section>
 
     <section class="metrics">
-      <div><span>PORTFOLIO</span><strong id="equity">$10,000.00</strong><small id="pnl">P&L $0.00</small></div>
+      <div><span>PORTFOLIO</span><strong id="equity">$20.00</strong><small id="pnl">P&L $0.00</small></div>
       <div><span>DRAWDOWN</span><strong id="drawdown">0.00%</strong><small>HARD LIMIT 5.00%</small></div>
       <div><span>POSITION</span><strong id="position">0%</strong><small id="shares">0 shares</small></div>
       <div><span>REWARD</span><strong id="reward">0.000</strong><small>RETURN − RISK − COST</small></div>
@@ -82,7 +82,8 @@
       </div>
     </section>
   </main>
-  <footer><span>FLYBRAIN LAB · PAPER ONLY</span><span>LIVE CAPITAL PATH: HARD LOCKED</span></footer>
+  <footer><span>FLYBRAIN LAB · PAPER ONLY · LIVE CAPITAL HARD LOCKED</span><span>TradingView Lightweight Charts™ · Copyright © 2025 <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView, Inc.</a></span></footer>
+  <script src="https://unpkg.com/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"></script>
   <script type="module" src="trading.js"></script>
 </body>
 </html>
