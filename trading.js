@@ -24,7 +24,7 @@ function reset(){
   clearTimeout(episodeTimer);state.episode++;save(EPISODE_KEY,state.episode);state.step=0;state.price=100;state.cash=STARTING_CAPITAL;state.shares=0;state.equity=STARTING_CAPITAL;state.peak=STARTING_CAPITAL;state.reward=0;state.lastReward=0;state.regime='CALM';state.phase=phaseFor(state.episode);state.bars=[];state.trades=[];state.pending=null;state.holdingBars=0;state.cooldown=0;state.tradeCount=0;state.turnover=0;state.stepTurnover=0;state.tradeStartEquity=null;state.tradeReward=0;state.ending=false;state.activeMinConfidence=confidenceFor();
   const marketSeed=seedForEpisode(state.episode);rand=seededRng(marketSeed);$('phase').textContent=state.phase;$('phase').style.color=state.phase==='TRAIN'?'var(--lime)':state.phase==='TEST'?'var(--red)':'var(--cyan)';$('confidenceOut').textContent=Math.round(state.activeMinConfidence*100)+'%';$('riskState').textContent='ARMED';$('riskState').style.color='';
   worker.postMessage({type:workerInitialized?'reset':'init',seed:marketSeed,control:CONTROL_MODE});workerInitialized=true;
-  for(let i=0;i<70;i++)marketStep(false);chart.timeScale().fitContent();log(state.phase+' episode #'+state.episode+' · weights '+(state.phase==='TRAIN'?'trainable':'frozen'));
+  for(let i=0;i<70;i++)marketStep(false);chart.timeScale().fitContent();log((CONTROL_MODE?'CONTROL':state.phase)+' episode #'+state.episode+' · weights '+(CONTROL_MODE||state.phase!=='TRAIN'?'frozen':'trainable'));
 }
 function features(){
   const closes=state.bars.map(b=>b.close),volumes=state.bars.map(b=>b.volume),n=closes.length,ret=k=>n>k?Math.tanh((closes[n-1]/closes[n-1-k]-1)*35):0;
