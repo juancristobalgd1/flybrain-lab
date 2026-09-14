@@ -46,7 +46,7 @@ canvas{width:100%;display:block}
 .orders #orders{position:absolute;inset:42px 0 0;padding:12px;overflow:hidden;font:9px/1.65 ui-monospace,monospace;color:#a0a6ad}
 .orders p{margin:0 0 7px;padding-bottom:7px;border-bottom:1px solid #1c2025}
 .orders time{color:#535a61;margin-right:7px}
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--line)}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line)}
 .metrics>div{height:112px;padding:17px;border-right:1px solid var(--line)}
 .metrics strong{display:block;font:29px ui-monospace,monospace;margin-top:13px;letter-spacing:-.05em}
 .metrics small{display:block;color:#6f767e;font:8px monospace;margin-top:6px}
