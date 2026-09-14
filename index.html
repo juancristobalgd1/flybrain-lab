@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080a0d">
+  <meta name="description" content="Interactive MaleCNS browser-control experiment visualization.">
+  <title>FlyBrain Lab — MaleCNS × Browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="FlyBrain Lab home"><span class="brand-mark">F</span><span>FLYBRAIN <b>LAB</b></span></a>
+    <div class="status"><span class="pulse"></span><span id="statusText">TRAINING LIVE</span></div>
+    <a class="github" href="https://github.com/juancristobalgd1/flybrain-lab" target="_blank" rel="noreferrer">GitHub ↗</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div><p class="eyebrow">MALECNS × SPIKING NEURAL NETWORK</p><h1>Can a fly brain<br><em>learn the web?</em></h1></div>
+      <p class="intro">A transparent research prototype connecting biological topology to a deterministic browser world. Watch every spike, action and reward.</p>
+    </section>
+
+    <section class="lab" aria-label="Live training dashboard">
+      <article class="panel world-panel">
+        <div class="panel-head"><span>01 · TEST WORLD</span><span class="mono">SEED <b id="seed">381</b></span></div>
+        <div class="world" id="world">
+          <div class="grid"></div><div class="fly" aria-hidden="true"><i></i><i></i><b></b></div>
+          <div class="monitor"><span id="monitorTarget">TARGET</span></div><div class="cursor" id="cursor"></div>
+          <p class="world-label">VISUOMOTOR TASK<br><b>FIND · MOVE · CLICK</b></p>
+        </div>
+      </article>
+
+      <article class="panel brain-panel">
+        <div class="panel-head"><span>02 · MALECNS CORE</span><span class="mono accent">166,700 N</span></div>
+        <canvas id="brain" aria-label="Animated neural activity graph"></canvas>
+        <div class="brain-caption"><span><b id="spikeRate">12.8K</b> spikes/s</span><span><b id="activeNodes">4,218</b> active</span><span><b>1 ms</b> Δt</span></div>
+      </article>
+
+      <article class="panel browser-panel">
+        <div class="panel-head"><span>03 · BROWSER</span><span class="mono">PIXELS ONLY</span></div>
+        <div class="mock-browser">
+          <div class="browser-chrome"><i></i><i></i><i></i><div>fly://target-world</div></div>
+          <div class="taskbar"><span>EPISODE TASK</span><b>Click the luminous target</b></div>
+          <div class="browser-stage" id="browserStage"><button id="target" tabindex="-1">TARGET</button><span class="agent-cursor" id="agentCursor"></span></div>
+          <div class="event-log" id="eventLog"><p><time>00:00.000</time> Environment reset</p></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="metrics">
+      <div><span>EPISODE</span><strong id="episode">20,148</strong><small id="deltaEpisode">+0</small></div>
+      <div><span>REWARD</span><strong id="reward">0.7488</strong><small class="positive">↗ 8.2%</small></div>
+      <div><span>SUCCESS RATE</span><strong id="success">72.4%</strong><small class="positive">↗ 3.1%</small></div>
+      <div><span>AVG. STEPS</span><strong id="steps">18.6</strong><small>last 100</small></div>
+      <div class="spark"><span>LEARNING CURVE</span><canvas id="chart"></canvas></div>
+    </section>
+
+    <section class="controls">
+      <button class="primary" id="toggle">Ⅱ&nbsp;&nbsp; PAUSE TRAINING</button>
+      <button id="reset">↻&nbsp;&nbsp; RESET</button>
+      <label>SPEED <input id="speed" type="range" min="1" max="8" value="3"><output id="speedOut">3×</output></label>
+      <p><span class="pulse"></span> Biological topology fixed · sensory and motor adapters trainable</p>
+    </section>
+
+    <section class="method">
+      <div><p class="eyebrow">EXPERIMENT 001</p><h2>Biology in the loop.</h2></div>
+      <div class="flow"><span>SCREEN<small>128 × 72 retina</small></span><i>→</i><span>SPIKES<small>Poisson encoder</small></span><i>→</i><span>MALECNS<small>Frozen topology</small></span><i>→</i><span>ACTION<small>Cursor + click</small></span></div>
+      <p class="note">This public preview is an interactive systems simulation. It demonstrates the intended data flow and observability layer; it does not yet execute the full MaleCNS dataset.</p>
+    </section>
+  </main>
+  <footer><span>FLYBRAIN LAB · OPEN EXPERIMENT</span><span>Built to make machine learning observable.</span></footer>
+  <script src="app.js"></script>
+</body>
+</html>
