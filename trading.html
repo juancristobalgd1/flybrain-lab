@@ -25,6 +25,7 @@
         <div><span>MARKET</span><strong id="symbol">FLY · SYNTHETIC</strong></div>
         <div><span>REGIME</span><strong id="regime">CALM</strong></div>
         <div><span>ENGINE</span><strong id="engine">INITIALIZING</strong></div>
+        <div><span>DATA SPLIT</span><strong id="phase">TRAIN</strong></div>
         <div><span>BROKER</span><strong class="safe">SIMULATOR ONLY</strong></div>
       </div>
       <div class="grid">
@@ -49,6 +50,15 @@
       </div>
     </section>
 
+    <section class="performance">
+      <div><span>COMPLETED</span><strong id="completed">0</strong></div>
+      <div><span>WIN RATE</span><strong id="winRate">—</strong></div>
+      <div><span>AVG. RETURN</span><strong id="avgReturn">—</strong></div>
+      <div><span>VS BUY & HOLD</span><strong id="alpha">—</strong></div>
+      <div><span>PROFIT FACTOR</span><strong id="profitFactor">—</strong></div>
+      <div><span>TURNOVER</span><strong id="turnover">0.0×</strong></div>
+    </section>
+
     <section class="metrics">
       <div><span>PORTFOLIO</span><strong id="equity">$20.00</strong><small id="pnl">P&L $0.00</small></div>
       <div><span>DRAWDOWN</span><strong id="drawdown">0.00%</strong><small id="drawdownCaption">HARD LIMIT 5.00%</small></div>
@@ -63,7 +73,7 @@
       <div class="risk-grid">
         <label>Max drawdown <b id="drawdownValue">5.00%</b><progress id="ddProgress" max="5" value="0"></progress></label>
         <label>Max exposure <b>50%</b><progress id="exposureProgress" max="50" value="0"></progress></label>
-        <label>Transaction cost <b>8 bps</b><progress max="10" value="8"></progress></label>
+        <label>Commission + spread/slippage <b>14 bps+</b><progress max="20" value="14"></progress></label>
         <label>Live orders <b class="off">LOCKED</b><progress class="locked" max="1" value="0"></progress></label>
       </div>
     </section>
@@ -74,6 +84,7 @@
       <label>SPEED <input id="speed" type="range" min="1" max="12" value="4"><output id="speedOut">4×</output></label>
       <label>VOLATILITY <select id="volatility"><option value=".008">LOW</option><option value=".016" selected>NORMAL</option><option value=".032">HIGH</option></select></label>
       <label>MAX LOSS <input id="drawdownLimit" type="range" min="1" max="20" step="1" value="5"><output id="drawdownOut">5%</output></label>
+      <label>MIN CONF <input id="confidenceLimit" type="range" min="50" max="90" step="1" value="65"><output id="confidenceOut">65%</output></label>
     </section>
 
     <section class="explain">
