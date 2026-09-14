@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080a0d">
+  <meta name="description" content="Laboratorio de paper trading impulsado por una red neuronal de spikes.">
+  <title>FlyBrain Trader — SNN Market Lab</title>
+  <link rel="stylesheet" href="trading.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="./"><b>F</b> FLYBRAIN <em>TRADER</em></a>
+    <div class="live"><i></i><span id="runStatus">PAPER TRAINING LIVE</span></div>
+    <a class="repo" href="https://github.com/juancristobalgd1/flybrain-lab">SOURCE ↗</a>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="kicker">EXPERIMENT 002 · US EQUITIES</p><h1>Teach biology<br>to manage <mark>risk.</mark></h1></div>
+      <p>Un mercado reproducible. Un agente neuronal. Ningún dinero real. Cada decisión pasa por un límite duro de drawdown del 5%.</p>
+    </section>
+
+    <section class="terminal">
+      <div class="terminal-head">
+        <div><span>MARKET</span><strong id="symbol">FLY · SYNTHETIC</strong></div>
+        <div><span>REGIME</span><strong id="regime">CALM</strong></div>
+        <div><span>ENGINE</span><strong id="engine">INITIALIZING</strong></div>
+        <div><span>BROKER</span><strong class="safe">SIMULATOR ONLY</strong></div>
+      </div>
+      <div class="grid">
+        <article class="chart-panel">
+          <div class="label">PRICE · 1 MINUTE BARS <span id="lastPrice">$100.00</span></div>
+          <canvas id="market" aria-label="Synthetic candlestick market"></canvas>
+          <div class="legend"><span><i class="buy"></i> BUY</span><span><i class="sell"></i> SELL</span><span><i class="hold"></i> HOLD</span></div>
+        </article>
+        <article class="brain-panel">
+          <div class="label">SPIKING POLICY <span id="spikeRate">0 spikes/s</span></div>
+          <canvas id="brain" aria-label="Live SNN activity"></canvas>
+          <div class="decision">
+            <span>ACTION</span><strong id="action">HOLD</strong>
+            <div><i id="buyBar"></i><i id="holdBar"></i><i id="sellBar"></i></div>
+            <small>BUY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; HOLD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SELL</small>
+          </div>
+        </article>
+        <aside class="orders">
+          <div class="label">EXECUTION LOG</div>
+          <div id="orders"><p><time>00:00:00</time> Market initialized</p></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="metrics">
+      <div><span>PORTFOLIO</span><strong id="equity">$10,000.00</strong><small id="pnl">P&L $0.00</small></div>
+      <div><span>DRAWDOWN</span><strong id="drawdown">0.00%</strong><small>HARD LIMIT 5.00%</small></div>
+      <div><span>POSITION</span><strong id="position">0%</strong><small id="shares">0 shares</small></div>
+      <div><span>REWARD</span><strong id="reward">0.000</strong><small>RETURN − RISK − COST</small></div>
+      <div><span>EPISODE</span><strong id="episode">1</strong><small id="step">STEP 0 / 480</small></div>
+    </section>
+
+    <section class="risk">
+      <div class="risk-head"><span>RISK GATE · INDEPENDENT OF AGENT</span><strong id="riskState">ARMED</strong></div>
+      <div class="risk-grid">
+        <label>Max drawdown <b>5.00%</b><progress id="ddProgress" max="5" value="0"></progress></label>
+        <label>Max exposure <b>50%</b><progress id="exposureProgress" max="50" value="0"></progress></label>
+        <label>Transaction cost <b>8 bps</b><progress max="10" value="8"></progress></label>
+        <label>Live orders <b class="off">LOCKED</b><progress class="locked" max="1" value="0"></progress></label>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button class="primary" id="toggle">Ⅱ&nbsp;&nbsp; PAUSE</button>
+      <button id="reset">↻&nbsp;&nbsp; NEW EPISODE</button>
+      <label>SPEED <input id="speed" type="range" min="1" max="12" value="4"><output id="speedOut">4×</output></label>
+      <label>VOLATILITY <select id="volatility"><option value=".008">LOW</option><option value=".016" selected>NORMAL</option><option value=".032">HIGH</option></select></label>
+    </section>
+
+    <section class="explain">
+      <div><p class="kicker">REALITY CHECK</p><h2>A research instrument,<br>not a money machine.</h2></div>
+      <div>
+        <p>The agent observes returns, volatility, momentum, position and drawdown. Its spikes produce BUY, HOLD or SELL. Reward is based on net portfolio return after transaction costs and a drawdown penalty.</p>
+        <p><b>Passing this simulation does not predict live profitability.</b> Before IBKR paper trading, the same policy must pass walk-forward tests on unseen historical data, survivorship-safe universes and stress regimes.</p>
+      </div>
+    </section>
+  </main>
+  <footer><span>FLYBRAIN LAB · PAPER ONLY</span><span>LIVE CAPITAL PATH: HARD LOCKED</span></footer>
+  <script type="module" src="trading.js"></script>
+</body>
+</html>
