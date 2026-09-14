@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id),bctx=$('brain').getContext('2d');
 const STARTING_CAPITAL=20;
-const state={running:true,speed:4,episode:1,step:0,price:100,cash:STARTING_CAPITAL,shares:0,equity:STARTING_CAPITAL,peak:STARTING_CAPITAL,reward:0,lastReward:0,vol:.016,regime:'CALM',bars:[],trades:[],halted:false,decision:{action:1,confidence:[.2,.6,.2],active:[]}};
-const worker=new Worker('snn-worker.js'),actions=['BUY','HOLD','SELL'];let timer,brainNodes=[];
+const state={running:true,speed:4,episode:1,step:0,price:100,cash:STARTING_CAPITAL,shares:0,equity:STARTING_CAPITAL,peak:STARTING_CAPITAL,reward:0,lastReward:0,vol:.016,maxDrawdown:.05,regime:'CALM',bars:[],trades:[],ending:false,decision:{action:1,confidence:[.2,.6,.2],active:[]}};
+const worker=new Worker('snn-worker.js'),actions=['BUY','HOLD','SELL'];let timer,episodeTimer,brainNodes=[],workerInitialized=false;
 
 const chart=LightweightCharts.createChart($('market'),{
   autoSize:true,
@@ -21,32 +21,35 @@ function seeded(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(
 let rand=seeded(42);
 function normal(){return Math.sqrt(-2*Math.log(Math.max(rand(),1e-9)))*Math.cos(2*Math.PI*rand())}
 function reset(){
-  state.episode++;state.step=0;state.price=100;state.cash=STARTING_CAPITAL;state.shares=0;state.equity=STARTING_CAPITAL;state.peak=STARTING_CAPITAL;state.reward=0;state.lastReward=0;state.halted=false;state.bars=[];state.trades=[];
-  rand=seeded(state.episode*977);$('riskState').textContent='ARMED';$('riskState').style.color='';worker.postMessage({type:'init',seed:state.episode*977});
+  clearTimeout(episodeTimer);
+  state.episode++;state.step=0;state.price=100;state.cash=STARTING_CAPITAL;state.shares=0;state.equity=STARTING_CAPITAL;state.peak=STARTING_CAPITAL;state.reward=0;state.lastReward=0;state.ending=false;state.bars=[];state.trades=[];
+  rand=seeded(state.episode*977);$('riskState').textContent='ARMED';$('riskState').style.color='';worker.postMessage({type:workerInitialized?'reset':'init',seed:state.episode*977});workerInitialized=true;
   for(let i=0;i<70;i++)marketStep(false);
   chart.timeScale().fitContent();log('New $20 fractional-share episode #'+state.episode);
 }
 function features(){const closes=state.bars.map(b=>b.close),n=closes.length,ret=k=>n>k?Math.tanh((closes[n-1]/closes[n-1-k]-1)*35):0;const mom=ret(8),short=ret(2),dd=1-state.equity/state.peak,pos=state.shares*state.price/state.equity;return[.5+short/2,.5+mom/2,Math.min(1,state.vol*20),Math.min(1,dd*20),Math.min(1,pos*2),.5+Math.sin(state.step/24)/2]}
 function marketStep(decide=true){
-  if(state.halted)return;state.step++;
+  if(state.ending)return;state.step++;
   if(state.step%120===0){const r=rand();state.regime=r<.28?'BEAR':r<.62?'CALM':'BULL';$('regime').textContent=state.regime}
   const drift=state.regime==='BULL'?.00035:state.regime==='BEAR'?-.00038:.00005,sigma=state.vol/Math.sqrt(390),open=state.price,close=open*Math.exp(drift+sigma*normal()),spread=Math.abs(sigma*normal())*open;
   state.price=close;state.bars.push({time:1700000000+state.episode*100000+state.step*60,open,high:Math.max(open,close)+spread,low:Math.min(open,close)-spread,close,volume:Math.round(800+rand()*4200)});
   if(state.bars.length>180)state.bars.shift();
   const prev=state.equity;state.equity=state.cash+state.shares*close;state.peak=Math.max(state.peak,state.equity);const dd=(state.peak-state.equity)/state.peak;
   state.lastReward=(state.equity-prev)/STARTING_CAPITAL-dd*.015;state.reward+=state.lastReward;
-  if(dd>=.05){liquidate('DRAWDOWN LIMIT');state.halted=true;$('riskState').textContent='HALTED';$('riskState').style.color='var(--red)';log('RISK GATE: drawdown limit reached')}
+  if(dd>=state.maxDrawdown){state.lastReward=-1;state.reward-=1;finishEpisode('MAX LOSS '+(state.maxDrawdown*100).toFixed(0)+'%',-1);render();return}
+  if(decide&&state.step>=480){finishEpisode('SESSION COMPLETE',Math.tanh((state.equity/STARTING_CAPITAL-1)*10));render();return}
   if(decide)worker.postMessage({type:'step',features:features(),reward:state.lastReward});render();
 }
+function finishEpisode(reason,terminalReward){if(state.ending)return;state.ending=true;liquidate(reason);worker.postMessage({type:'terminal',reward:terminalReward});$('riskState').textContent='RESETTING';$('riskState').style.color='var(--red)';log(reason+' · learning continues next episode');episodeTimer=setTimeout(reset,450)}
 function execute(action,confidence){
-  if(state.halted)return;
+  if(state.ending)return;
   const current=state.equity?state.shares*state.price/state.equity:0,target=[.5,current,0][action];if(Math.abs(target-current)<.08)return;
   const targetShares=state.equity*target/state.price,deltaShares=+(targetShares-state.shares).toFixed(6);if(Math.abs(deltaShares)<.000001)return;
   const notional=Math.abs(deltaShares)*state.price,cost=notional*.0008;state.cash-=deltaShares*state.price+cost;state.shares=+(state.shares+deltaShares).toFixed(6);
   state.trades.push({time:state.bars.at(-1).time,action,price:state.price});log(actions[action]+' '+Math.abs(deltaShares).toFixed(4)+' shares @ $'+state.price.toFixed(2)+' · '+(confidence*100).toFixed(0)+'%');
 }
 function liquidate(reason){if(!state.shares)return;state.cash+=state.shares*state.price-Math.abs(state.shares)*state.price*.0008;log('SELL '+state.shares.toFixed(4)+' shares · '+reason);state.shares=0}
-worker.onmessage=e=>{if(e.data.type==='ready'){$('engine').textContent=e.data.engine;brainNodes=Array.from({length:96},(_,i)=>({x:rand(),y:rand(),p:i}));return}state.decision=e.data;$('action').textContent=actions[e.data.action];$('spikeRate').textContent=(e.data.total*62.5).toFixed(0)+' spikes/s';['buyBar','holdBar','sellBar'].forEach((id,i)=>$(id).style.height=(8+e.data.confidence[i]*90)+'%');execute(e.data.action,e.data.confidence[e.data.action])};
+worker.onmessage=e=>{if(e.data.type==='ready'){$('engine').textContent=e.data.engine;brainNodes=Array.from({length:96},(_,i)=>({x:rand(),y:rand(),p:i}));return}state.decision=e.data;$('action').textContent=actions[e.data.action];$('spikeRate').textContent=(e.data.total*62.5).toFixed(0)+' spikes/s';$('updates').textContent=e.data.learningUpdates.toLocaleString();$('weightDelta').textContent='ΔW '+e.data.meanDelta.toFixed(5)+' · ε '+(e.data.epsilon*100).toFixed(0)+'%';['buyBar','holdBar','sellBar'].forEach((id,i)=>$(id).style.height=(8+e.data.confidence[i]*90)+'%');execute(e.data.action,e.data.confidence[e.data.action])};
 function log(message){const p=document.createElement('p'),time=document.createElement('time');time.textContent=new Date().toISOString().slice(11,19);p.append(time,document.createTextNode(message));$('orders').prepend(p);while($('orders').children.length>18)$('orders').lastChild.remove()}
 function resize(c,cx){const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio,2);c.width=r.width*d;c.height=r.height*d;cx.setTransform(d,0,0,d,0,0)}
 function drawMarket(){
@@ -61,4 +64,4 @@ function render(){
 }
 function schedule(){clearInterval(timer);timer=setInterval(()=>{if(state.running)for(let i=0;i<state.speed;i++)marketStep()},220)}
 $('toggle').onclick=()=>{state.running=!state.running;$('toggle').innerHTML=state.running?'Ⅱ&nbsp;&nbsp; PAUSE':'▶&nbsp;&nbsp; RESUME';$('runStatus').textContent=state.running?'PAPER TRAINING LIVE':'TRAINING PAUSED'};
-$('reset').onclick=reset;$('speed').oninput=e=>{$('speedOut').textContent=(state.speed=+e.target.value)+'×'};$('volatility').onchange=e=>state.vol=+e.target.value;addEventListener('resize',drawBrain);reset();schedule();
+$('reset').onclick=reset;$('speed').oninput=e=>{$('speedOut').textContent=(state.speed=+e.target.value)+'×'};$('volatility').onchange=e=>state.vol=+e.target.value;$('drawdownLimit').oninput=e=>{const value=+e.target.value;state.maxDrawdown=value/100;$('drawdownOut').textContent=value+'%';$('drawdownValue').textContent=value.toFixed(2)+'%';$('drawdownCaption').textContent='HARD LIMIT '+value.toFixed(2)+'%';$('ddProgress').max=value};addEventListener('resize',drawBrain);reset();schedule();
