@@ -1,0 +1,9 @@
+{
+  "name": "flybrain-lab",
+  "private": true,
+  "type": "module",
+  "description": "Sin dependencias en runtime ni en test: usa el test runner nativo de Node (node --test).",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
