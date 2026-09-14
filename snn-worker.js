@@ -17,8 +17,10 @@ function learn(reward){
   const delta=Math.sign(reward)*Math.min(.004,.0002+Math.abs(reward)*.01);
   for(const edge of eligible){const before=weight[edge];weight[edge]=Math.max(.01,Math.min(.7,before+delta));totalAbsDelta+=Math.abs(weight[edge]-before);learningUpdates++}
 }
-function step(features,reward=0){
-  learn(reward);const decayV=Math.exp(-DT/20),decayI=Math.exp(-DT/5),activeWindow=new Uint8Array(N);let total=0;policy.fill(0);
+function snapshot(){postMessage({type:'checkpoint',weights:Array.from(weight),learningUpdates,totalAbsDelta,decisions})}
+function restore(data){if(data?.weights?.length!==weight.length)return;weight.set(data.weights);learningUpdates=data.learningUpdates||0;totalAbsDelta=data.totalAbsDelta||0;decisions=data.decisions||0;postMessage({type:'restored',learningUpdates})}
+function step(features,reward=0,train=true,explore=true){
+  if(train)learn(reward);const decayV=Math.exp(-DT/20),decayI=Math.exp(-DT/5),activeWindow=new Uint8Array(N);let total=0;policy.fill(0);
   for(let tick=0;tick<16;tick++){
     current.fill(0);for(let i=0;i<INPUTS;i++)if(rng()<Math.min(.95,Math.max(0,features[i%features.length]))*.42)lastSpikes[i]=1;
     for(let i=0;i<N;i++)if(lastSpikes[i])for(let e=ptr[i];e<ptr[i+1];e++)current[post[e]]+=weight[e];spikes.fill(0);
@@ -26,8 +28,8 @@ function step(features,reward=0){
     lastSpikes.set(spikes);OUTPUTS.forEach((n,i)=>policy[i]+=spikes[n]);
   }
   const sum=policy.reduce((a,b)=>a+b,0)+.001,confidence=Array.from(policy,x=>(x+.01)/(sum+.03)),epsilon=Math.max(.04,.18-decisions/10000);let action=confidence.indexOf(Math.max(...confidence));
-  if(rng()<epsilon)action=Math.floor(rng()*3);decisions++;eligible=[];const output=OUTPUTS[action];
+  if(explore&&rng()<epsilon)action=Math.floor(rng()*3);decisions++;eligible=[];const output=OUTPUTS[action];
   for(let i=48;i<N-3;i++)if(activeWindow[i])for(let e=ptr[i];e<ptr[i+1];e++)if(post[e]===output)eligible.push(e);
   postMessage({type:'step',action,confidence,total,active:Array.from(spikes.entries()).filter(([,x])=>x).slice(0,40).map(([i])=>i),learningUpdates,meanDelta:learningUpdates?totalAbsDelta/learningUpdates:0,epsilon});
 }
-onmessage=e=>{const {type,seed,features,reward}=e.data;if(type==='init')build(seed);else if(type==='reset')resetState(seed);else if(type==='step')step(features,reward);else if(type==='terminal')learn(reward)};
+onmessage=e=>{const {type,seed,features,reward,train,explore,checkpoint}=e.data;if(type==='init')build(seed);else if(type==='reset')resetState(seed);else if(type==='step')step(features,reward,train,explore);else if(type==='terminal'){if(train)learn(reward);snapshot()}else if(type==='restore')restore(checkpoint)};
