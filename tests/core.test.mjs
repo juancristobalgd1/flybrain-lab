@@ -20,16 +20,12 @@ test('phaseFor: TEST cada 10 episodios, VALIDATION en 8 y 9, TRAIN el resto', ()
   assert.equal(phases[7], 'TRAIN');
 });
 
-test('seedForEpisode: TEST usa una familia de semillas disjunta de TRAIN/VALIDATION (P0 fix #2)', () => {
-  const trainSeeds = new Set();
-  const testSeeds = new Set();
-  for (let episode = 0; episode < 200; episode++) {
+test('seedForEpisode: TEST usa un namespace de 32 bits disjunto de TRAIN/VALIDATION (P0 fix #2)', () => {
+  for (let episode = 0; episode < 1_000_000; episode++) {
     const seed = seedForEpisode(episode);
-    if (phaseFor(episode) === 'TEST') testSeeds.add(seed);
-    else trainSeeds.add(seed);
+    const isTestNamespace = (seed >>> 31) === 1;
+    assert.equal(isTestNamespace, phaseFor(episode) === 'TEST');
   }
-  const overlap = [...testSeeds].filter((s) => trainSeeds.has(s));
-  assert.equal(overlap.length, 0, 'ninguna semilla de TEST debe coincidir con una de TRAIN/VALIDATION');
 });
 
 test('seededRng: determinismo — misma semilla produce la misma secuencia', () => {
