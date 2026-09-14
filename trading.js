@@ -1,7 +1,12 @@
+import{seededRng,normalFrom,phaseFor,seedForEpisode,computeFill,computeCommission,stepReward}from'./lib/market-core.mjs';
 const $=id=>document.getElementById(id),bctx=$('brain').getContext('2d'),STARTING_CAPITAL=20,HORIZON=480;
 const ACTIONS=['BUY 10','BUY 25','BUY 50','HOLD','REDUCE','EXIT','ABSTAIN'],COMMISSION_BPS=8,SPREAD_BPS=4,SLIPPAGE_BPS=2,MIN_HOLD=5,COOLDOWN=3,MAX_TRADES=20,TRADE_RISK=.0025,EPISODE_LOSS=.01,persistedHistory=load('flybrain-v2-history',[]);
+// ?control=1 arranca el worker en modo control (misma topologia, pesos aleatorios congelados,
+// sin exploracion ni aprendizaje) para poder comparar el agente entrenado contra ese baseline
+// sin tener que instrumentar un segundo worker en paralelo. Ver auditoria, punto 4/11.
+const CONTROL_MODE=new URLSearchParams(location.search).get('control')==='1';
 const state={running:true,speed:4,episode:load('flybrain-v2-episode',0),step:0,price:100,cash:STARTING_CAPITAL,shares:0,equity:STARTING_CAPITAL,peak:STARTING_CAPITAL,reward:0,lastReward:0,vol:.016,maxDrawdown:.05,evalMinConfidence:.65,activeMinConfidence:.4,regime:'CALM',phase:'TRAIN',bars:[],trades:[],history:persistedHistory,pending:null,holdingBars:0,cooldown:0,tradeCount:0,turnover:0,stepTurnover:0,tradeStartEquity:null,tradeReward:0,ending:false,decision:{action:6,confidence:Array(7).fill(1/7),active:[]}};
-const worker=new Worker('snn-worker.js?v=3');let timer,episodeTimer,brainNodes=[],workerInitialized=false;
+const worker=new Worker('snn-worker.js?v=4');let timer,episodeTimer,brainNodes=[],workerInitialized=false;
 
 const chart=LightweightCharts.createChart($('market'),{autoSize:true,layout:{background:{type:'solid',color:'#0d1014'},textColor:'#7f868e',fontFamily:'ui-monospace, SFMono-Regular, Menlo, monospace',fontSize:10,attributionLogo:false},grid:{vertLines:{color:'#1a1f24'},horzLines:{color:'#1a1f24'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#66707a',labelBackgroundColor:'#20262c'},horzLine:{color:'#66707a',labelBackgroundColor:'#20262c'}},rightPriceScale:{borderColor:'#282e34',scaleMargins:{top:.1,bottom:.2}},timeScale:{borderColor:'#282e34',timeVisible:true,secondsVisible:false,rightOffset:4,barSpacing:7},localization:{priceFormatter:price=>'$'+price.toFixed(2)}});
 const candleSeries=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#c7ff3d',downColor:'#ff5f68',wickUpColor:'#9fcb3d',wickDownColor:'#d64f58',borderVisible:false,priceLineColor:'#c7ff3d',priceLineWidth:1,lastValueVisible:true});
@@ -10,16 +15,14 @@ volumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0}});const 
 
 function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
-function seeded(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-let rand=seeded(42);const normal=()=>Math.sqrt(-2*Math.log(Math.max(rand(),1e-9)))*Math.cos(2*Math.PI*rand());
-const phaseFor=episode=>episode%10===0?'TEST':episode%10>=8?'VALIDATION':'TRAIN';
+let rand=seededRng(42);const normal=()=>normalFrom(rand);
 const confidenceFor=()=>state.phase==='TRAIN'?(state.history.filter(x=>x.phase==='TRAIN').length<30?.4:state.history.filter(x=>x.phase==='TRAIN').length<100?.5:.6):state.evalMinConfidence;
 const pct=value=>(value*100).toFixed(2)+'%';
 
 function reset(){
   clearTimeout(episodeTimer);state.episode++;save('flybrain-v2-episode',state.episode);state.step=0;state.price=100;state.cash=STARTING_CAPITAL;state.shares=0;state.equity=STARTING_CAPITAL;state.peak=STARTING_CAPITAL;state.reward=0;state.lastReward=0;state.regime='CALM';state.phase=phaseFor(state.episode);state.bars=[];state.trades=[];state.pending=null;state.holdingBars=0;state.cooldown=0;state.tradeCount=0;state.turnover=0;state.stepTurnover=0;state.tradeStartEquity=null;state.tradeReward=0;state.ending=false;state.activeMinConfidence=confidenceFor();
-  rand=seeded(state.episode*977);$('phase').textContent=state.phase;$('phase').style.color=state.phase==='TRAIN'?'var(--lime)':state.phase==='TEST'?'var(--red)':'var(--cyan)';$('confidenceOut').textContent=Math.round(state.activeMinConfidence*100)+'%';$('riskState').textContent='ARMED';$('riskState').style.color='';
-  worker.postMessage({type:workerInitialized?'reset':'init',seed:state.episode*977});workerInitialized=true;
+  const marketSeed=seedForEpisode(state.episode);rand=seededRng(marketSeed);$('phase').textContent=state.phase;$('phase').style.color=state.phase==='TRAIN'?'var(--lime)':state.phase==='TEST'?'var(--red)':'var(--cyan)';$('confidenceOut').textContent=Math.round(state.activeMinConfidence*100)+'%';$('riskState').textContent='ARMED';$('riskState').style.color='';
+  worker.postMessage({type:workerInitialized?'reset':'init',seed:marketSeed,control:CONTROL_MODE});workerInitialized=true;
   for(let i=0;i<70;i++)marketStep(false);chart.timeScale().fitContent();log(state.phase+' episode #'+state.episode+' · weights '+(state.phase==='TRAIN'?'trainable':'frozen'));
 }
 function features(){
@@ -37,8 +40,8 @@ function queueDecision(action,confidence,explored=false){
 function executePending(open){
   state.stepTurnover=0;if(!state.pending)return;const {action,target,confidence}=state.pending;state.pending=null;
   const current=state.equity?state.shares*open/state.equity:0;if(Math.abs(target-current)<.025)return;
-  const rawDelta=state.equity*target/open-state.shares,direction=Math.sign(rawDelta),fill=open*(1+direction*(SPREAD_BPS/2+SLIPPAGE_BPS)/10000),delta=+(state.equity*target/fill-state.shares).toFixed(6);
-  if(Math.abs(delta)<.000001)return;const notional=Math.abs(delta)*fill,commission=notional*COMMISSION_BPS/10000;
+  const rawDelta=state.equity*target/open-state.shares,direction=Math.sign(rawDelta),fill=computeFill(open,direction,SPREAD_BPS,SLIPPAGE_BPS),delta=+(state.equity*target/fill-state.shares).toFixed(6);
+  if(Math.abs(delta)<.000001)return;const notional=Math.abs(delta)*fill,commission=computeCommission(notional,COMMISSION_BPS);
   state.cash-=delta*fill+commission;state.shares=+(state.shares+delta).toFixed(6);state.stepTurnover=notional/STARTING_CAPITAL;state.turnover+=state.stepTurnover;state.tradeCount++;
   if(delta>0&&state.tradeStartEquity===null){state.tradeStartEquity=state.equity;state.holdingBars=0}else if(Math.abs(state.shares)<.000001){state.shares=0;state.cooldown=COOLDOWN;state.tradeReward=(state.cash-state.tradeStartEquity)/STARTING_CAPITAL*2;state.tradeStartEquity=null}
   state.trades.push({time:state.bars.at(-1)?.time+60||0,action:delta>0?0:2,price:fill});log(ACTIONS[action]+' '+Math.abs(delta).toFixed(4)+' @ $'+fill.toFixed(2)+' · '+(confidence*100).toFixed(0)+'% · next-bar fill');
@@ -50,7 +53,7 @@ function marketStep(decide=true){
   state.price=close;state.bars.push({time:1700000000+state.episode*100000+state.step*60,open,high:Math.max(open,close)+spread,low:Math.min(open,close)-spread,close,volume:Math.round(800+rand()*4200)});if(state.bars.length>180)state.bars.shift();
   if(state.shares)state.holdingBars++;else if(state.cooldown)state.cooldown--;state.equity=state.cash+state.shares*close;state.peak=Math.max(state.peak,state.equity);
   const dd=(state.peak-state.equity)/state.peak,ddIncrease=Math.max(0,dd-previousDd),exposure=state.equity?state.shares*close/state.equity:0,opportunityCost=Math.max(0,close/open-1)*(1-exposure)*.05;
-  state.lastReward=(state.equity-previousEquity)/STARTING_CAPITAL*.2+state.tradeReward-ddIncrease*.25-state.stepTurnover*.0002-opportunityCost;state.tradeReward=0;state.reward+=state.lastReward;
+  state.lastReward=stepReward({equityBefore:previousEquity,equityAfter:state.equity,tradeReward:state.tradeReward,ddIncrease,stepTurnover:state.stepTurnover,opportunityCost,startingCapital:STARTING_CAPITAL});state.tradeReward=0;state.reward+=state.lastReward;
   if(state.shares&&state.tradeStartEquity&&(state.tradeStartEquity-state.equity)/STARTING_CAPITAL>=TRADE_RISK)state.pending={action:5,target:0,confidence:1,force:true};
   if(state.equity/STARTING_CAPITAL-1<=-EPISODE_LOSS){state.reward-=.5;finishEpisode('EPISODE LOSS '+pct(EPISODE_LOSS),-.5);render();return}
   if(dd>=state.maxDrawdown){state.reward-=1;finishEpisode('MAX LOSS '+pct(state.maxDrawdown),-1);render();return}
@@ -58,7 +61,7 @@ function marketStep(decide=true){
   if(decide)worker.postMessage({type:'step',features:features(),reward:state.lastReward,train:state.phase==='TRAIN',explore:state.phase==='TRAIN'});render();
 }
 function liquidate(reason){
-  if(!state.shares)return;const fill=state.price*(1-(SPREAD_BPS/2+SLIPPAGE_BPS)/10000),notional=state.shares*fill,commission=notional*COMMISSION_BPS/10000;state.cash+=notional-commission;state.turnover+=notional/STARTING_CAPITAL;log('SELL '+state.shares.toFixed(4)+' · '+reason);state.shares=0;state.equity=state.cash;if(state.tradeStartEquity!==null){state.tradeReward=(state.cash-state.tradeStartEquity)/STARTING_CAPITAL*2;state.tradeStartEquity=null}
+  if(!state.shares)return;const fill=computeFill(state.price,-1,SPREAD_BPS,SLIPPAGE_BPS),notional=state.shares*fill,commission=computeCommission(notional,COMMISSION_BPS);state.cash+=notional-commission;state.turnover+=notional/STARTING_CAPITAL;log('SELL '+state.shares.toFixed(4)+' · '+reason);state.shares=0;state.equity=state.cash;if(state.tradeStartEquity!==null){state.tradeReward=(state.cash-state.tradeStartEquity)/STARTING_CAPITAL*2;state.tradeStartEquity=null}
 }
 function finishEpisode(reason,terminalReward){
   if(state.ending)return;state.ending=true;liquidate(reason);const strategyReturn=state.equity/STARTING_CAPITAL-1,benchmarkReturn=state.price/100-1;
