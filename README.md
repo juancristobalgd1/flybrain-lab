@@ -2,6 +2,20 @@
 
 An interactive public visualization of the proposed **MaleCNS → spiking neural network → browser** experiment.
 
+## FlyBrain Trader
+
+`trading.html` adds a conservative US-equities research environment:
+
+- deterministic synthetic regime market;
+- executable sparse LIF spiking policy in a Web Worker;
+- BUY / HOLD / SELL with costs and slippage proxy;
+- independent 5% maximum-drawdown hard stop;
+- a server-only, paper-only Interactive Brokers adapter with live capital
+  deliberately unimplemented.
+
+Synthetic profitability is not evidence of live profitability. See
+`docs/TRADING_ARCHITECTURE.md` for the promotion gates.
+
 The preview makes the training loop observable: synthetic neural activity, browser actions, episodic rewards, success rate, deterministic seeds and a visuomotor test world. It is deliberately dependency-free so the complete demo runs as a static GitHub Pages site.
 
 > This first public preview is a systems simulation, not a scientific claim or a full MaleCNS execution. The next engineering milestone is to connect the UI telemetry protocol to a real sparse SNN backend.
