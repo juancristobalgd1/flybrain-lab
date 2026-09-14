@@ -17,7 +17,7 @@ a{color:inherit;text-decoration:none}
 .intro>p{max-width:390px;color:#959ca3;line-height:1.65;margin:0}
 .kicker,.label{color:var(--muted)}
 .terminal{border-block:1px solid var(--line)}
-.terminal-head{height:58px;display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.terminal-head{height:58px;display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--line)}
 .terminal-head>div{padding:11px 16px;border-right:1px solid var(--line)}
 .terminal-head span,.terminal-head strong{display:block}
 .terminal-head strong{font:11px ui-monospace,monospace;margin-top:7px}
@@ -50,6 +50,10 @@ canvas{width:100%;display:block}
 .metrics>div{height:112px;padding:17px;border-right:1px solid var(--line)}
 .metrics strong{display:block;font:29px ui-monospace,monospace;margin-top:13px;letter-spacing:-.05em}
 .metrics small{display:block;color:#6f767e;font:8px monospace;margin-top:6px}
+.performance{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line);background:#0a0d10}
+.performance>div{padding:14px 17px;border-right:1px solid var(--line)}
+.performance span{display:block;color:#707881;font:8px ui-monospace,monospace;letter-spacing:.12em}
+.performance strong{display:block;margin-top:8px;font:15px ui-monospace,monospace;color:#dfe3e6}
 .risk{padding:22px 26px;border-bottom:1px solid var(--line)}
 .risk-head{display:flex;justify-content:space-between;margin-bottom:18px;color:#858c94}
 .risk-head strong{color:var(--lime)}
@@ -80,6 +84,7 @@ footer a{color:#8c949c;text-decoration:underline}
 #market,#brain{height:298px}
 .orders{height:220px}
 .metrics{grid-template-columns:1fr 1fr}
+.performance{grid-template-columns:1fr 1fr 1fr}
 .metrics>div:last-child{grid-column:1/-1}
 .risk-grid{grid-template-columns:1fr 1fr}
 .controls{flex-wrap:wrap}
@@ -89,6 +94,7 @@ footer a{color:#8c949c;text-decoration:underline}
 .live{display:none}
 .intro{padding:45px 16px 30px}
 .terminal-head{grid-template-columns:1fr 1fr;height:auto}
+.performance{grid-template-columns:1fr 1fr}
 .terminal-head>div{height:54px;border-bottom:1px solid var(--line)}
 .metrics strong{font-size:24px}
 .risk{padding:20px 16px}
