@@ -3,13 +3,13 @@ let ptr,post,weight,v,current,refractory,spikes,lastSpikes,firedCount,policy,rng
 
 function mulberry32(seed){return()=>{let t=seed+=0x6d2b79f5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 function resetState(seed){rng=mulberry32(seed);v.fill(-52);current.fill(0);refractory.fill(0);spikes.fill(0);lastSpikes.fill(0);firedCount.fill(0);policy.fill(0);eligible=[]}
-function build(seed=381,control=false){
+function build(seed=381,control=false,stateSeed=seed){
   controlMode=control;rng=mulberry32(seed);const edges=Array.from({length:N},()=>[]);
   for(let i=0;i<N;i++){const degree=3+Math.floor(rng()*7);for(let k=0;k<degree;k++){const j=Math.floor(rng()*N);if(j!==i)edges[i].push([j,.08+Math.log1p(Math.floor(rng()*30))*.08])}}
   for(let o=0;o<OUTPUTS.length;o++)for(let i=48;i<N-7;i+=5+o)edges[i].push([OUTPUTS[o],.25]);
   ptr=new Uint32Array(N+1);for(let i=0;i<N;i++)ptr[i+1]=ptr[i]+edges[i].length;post=new Uint16Array(ptr[N]);weight=new Float32Array(ptr[N]);
   for(let i=0;i<N;i++)edges[i].forEach(([j,w],k)=>{post[ptr[i]+k]=j;weight[ptr[i]+k]=w});
-  v=new Float32Array(N);current=new Float32Array(N);refractory=new Uint8Array(N);spikes=new Uint8Array(N);lastSpikes=new Uint8Array(N);firedCount=new Uint8Array(N);policy=new Float32Array(OUTPUTS.length);resetState(seed);
+  v=new Float32Array(N);current=new Float32Array(N);refractory=new Uint8Array(N);spikes=new Uint8Array(N);lastSpikes=new Uint8Array(N);firedCount=new Uint8Array(N);policy=new Float32Array(OUTPUTS.length);resetState(stateSeed);
   postMessage({type:'ready',engine:(controlMode?'LIF CONTROL (frozen random) · ':'LIF PROXY · ')+N+'N / '+post.length+'E',neurons:N,edges:post.length,learningUpdates,control:controlMode});
 }
 // P0 fix (auditoria, punto 1): la regla anterior aplicaba el MISMO delta de signo(reward)
@@ -43,4 +43,4 @@ function step(features,reward=0,train=true,explore=true){
   if(!controlMode)for(let i=48;i<N-7;i++)if(activeWindow[i])for(let e=ptr[i];e<ptr[i+1];e++)if(post[e]===output)eligible.push({edge:e,contribution:firedCount[i]});
   postMessage({type:'step',action,confidence,total,explored,active:Array.from(spikes.entries()).filter(([,x])=>x).slice(0,40).map(([i])=>i),learningUpdates,meanDelta:learningUpdates?totalAbsDelta/learningUpdates:0,epsilon});
 }
-onmessage=e=>{const {type,seed,control,features,reward,train,explore,checkpoint}=e.data;if(type==='init')build(seed,control);else if(type==='reset')resetState(seed);else if(type==='step')step(features,reward,train,explore);else if(type==='terminal'){if(train)learn(reward);snapshot()}else if(type==='restore')restore(checkpoint)};
+onmessage=e=>{const {type,seed,control,stateSeed,features,reward,train,explore,checkpoint}=e.data;if(type==='init')build(seed,control,stateSeed);else if(type==='reset')resetState(seed);else if(type==='step')step(features,reward,train,explore);else if(type==='terminal'){if(train)learn(reward);snapshot()}else if(type==='restore')restore(checkpoint)};
