@@ -51,16 +51,17 @@
 
     <section class="metrics">
       <div><span>PORTFOLIO</span><strong id="equity">$20.00</strong><small id="pnl">P&L $0.00</small></div>
-      <div><span>DRAWDOWN</span><strong id="drawdown">0.00%</strong><small>HARD LIMIT 5.00%</small></div>
+      <div><span>DRAWDOWN</span><strong id="drawdown">0.00%</strong><small id="drawdownCaption">HARD LIMIT 5.00%</small></div>
       <div><span>POSITION</span><strong id="position">0%</strong><small id="shares">0 shares</small></div>
       <div><span>REWARD</span><strong id="reward">0.000</strong><small>RETURN − RISK − COST</small></div>
       <div><span>EPISODE</span><strong id="episode">1</strong><small id="step">STEP 0 / 480</small></div>
+      <div><span>PLASTICITY</span><strong id="updates">0</strong><small id="weightDelta">ΔW 0.00000 · ε 18%</small></div>
     </section>
 
     <section class="risk">
       <div class="risk-head"><span>RISK GATE · INDEPENDENT OF AGENT</span><strong id="riskState">ARMED</strong></div>
       <div class="risk-grid">
-        <label>Max drawdown <b>5.00%</b><progress id="ddProgress" max="5" value="0"></progress></label>
+        <label>Max drawdown <b id="drawdownValue">5.00%</b><progress id="ddProgress" max="5" value="0"></progress></label>
         <label>Max exposure <b>50%</b><progress id="exposureProgress" max="50" value="0"></progress></label>
         <label>Transaction cost <b>8 bps</b><progress max="10" value="8"></progress></label>
         <label>Live orders <b class="off">LOCKED</b><progress class="locked" max="1" value="0"></progress></label>
@@ -72,6 +73,7 @@
       <button id="reset">↻&nbsp;&nbsp; NEW EPISODE</button>
       <label>SPEED <input id="speed" type="range" min="1" max="12" value="4"><output id="speedOut">4×</output></label>
       <label>VOLATILITY <select id="volatility"><option value=".008">LOW</option><option value=".016" selected>NORMAL</option><option value=".032">HIGH</option></select></label>
+      <label>MAX LOSS <input id="drawdownLimit" type="range" min="1" max="20" step="1" value="5"><output id="drawdownOut">5%</output></label>
     </section>
 
     <section class="explain">
