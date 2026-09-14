@@ -16,7 +16,7 @@
   </header>
   <main>
     <section class="intro">
-      <div><p class="kicker">EXPERIMENT 002 · US EQUITIES</p><h1>Teach biology<br>to manage <mark>risk.</mark></h1></div>
+      <div><p class="kicker">EXPERIMENT 003 · CLEAN V2 · SYNTHETIC US EQUITIES</p><h1>Protect capital.<br>Earn only with <mark>edge.</mark></h1></div>
       <p>Un mercado reproducible. Un agente neuronal. Ningún dinero real. Cada decisión pasa por un límite duro de drawdown del 5%.</p>
     </section>
 
@@ -40,7 +40,7 @@
           <div class="decision">
             <span>ACTION</span><strong id="action">HOLD</strong>
             <div><i id="buyBar"></i><i id="holdBar"></i><i id="sellBar"></i></div>
-            <small>BUY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; HOLD&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SELL</small>
+            <small>BUY 10/25/50 · HOLD/ABSTAIN · REDUCE/EXIT</small>
           </div>
         </article>
         <aside class="orders">
@@ -72,6 +72,8 @@
       <div class="risk-head"><span>RISK GATE · INDEPENDENT OF AGENT</span><strong id="riskState">ARMED</strong></div>
       <div class="risk-grid">
         <label>Max drawdown <b id="drawdownValue">5.00%</b><progress id="ddProgress" max="5" value="0"></progress></label>
+        <label>Risk per trade <b>0.25%</b><progress max="1" value=".25"></progress></label>
+        <label>Episode loss <b>1.00%</b><progress max="1" value="1"></progress></label>
         <label>Max exposure <b>50%</b><progress id="exposureProgress" max="50" value="0"></progress></label>
         <label>Commission + spread/slippage <b>14 bps+</b><progress max="20" value="14"></progress></label>
         <label>Live orders <b class="off">LOCKED</b><progress class="locked" max="1" value="0"></progress></label>
@@ -90,7 +92,7 @@
     <section class="explain">
       <div><p class="kicker">REALITY CHECK</p><h2>A research instrument,<br>not a money machine.</h2></div>
       <div>
-        <p>The agent observes returns, volatility, momentum, position and drawdown. Its spikes produce BUY, HOLD or SELL. Reward is based on net portfolio return after transaction costs and a drawdown penalty.</p>
+        <p>The agent observes returns, volatility, momentum, position and drawdown. Its spikes select BUY 10/25/50, HOLD, REDUCE, EXIT or ABSTAIN. Reward prioritizes closed-trade expectancy, net return and capital preservation after all simulated costs.</p>
         <p><b>Passing this simulation does not predict live profitability.</b> Before IBKR paper trading, the same policy must pass walk-forward tests on unseen historical data, survivorship-safe universes and stress regimes.</p>
       </div>
     </section>
