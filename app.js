@@ -42,6 +42,7 @@ const state = {
   scanned: 0,
   anomalies: 0,
   targetMeta: null,
+  ending: false,
 };
 
 const drone = {
@@ -335,6 +336,7 @@ function resetMission() {
   state.missionTime = 0;
   state.scanned = 0;
   state.anomalies = state.episode % 9 === 0 ? 1 : 0;
+  state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
   drone.target.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
@@ -405,10 +407,10 @@ function teacher() {
   const dz = drone.target.z - drone.p.z;
   const bearing = Math.atan2(dz, dx);
   const angle = Math.atan2(Math.sin(bearing - drone.yaw), Math.cos(bearing - drone.yaw));
-  if (lidar().some(value => value < .18)) return 3;
-  if (Math.abs(angle) > .27) return angle > 0 ? 1 : 2;
   if (drone.target.y - drone.p.y > .8) return 3;
   if (drone.target.y - drone.p.y < -.8) return 4;
+  if (Math.abs(angle) > .27) return angle > 0 ? 1 : 2;
+  if (lidar().some(value => value < .18) && drone.p.y < 6.5) return 3;
   return 0;
 }
 
@@ -611,6 +613,8 @@ worker.onmessage = ({ data }) => {
 worker.postMessage({ type: 'init', seed: 381 });
 
 function endMission(success) {
+  if (state.ending) return;
+  state.ending = true;
   state.successHistory.push(success);
   state.successHistory = state.successHistory.slice(-500);
   state.curve.push(successRate(state.successHistory));
@@ -644,7 +648,8 @@ function tick(dt) {
   $('success').textContent = `${(successRate(state.successHistory) * 100).toFixed(1)}%`;
   $('anomalies').textContent = state.anomalies;
   updateRoute();
-  state.missionTime > 34 || state.battery <= 0 ? endMission(false) : currentDistance < 1.15 ? endMission(true) : null;
+  if (!state.ending && currentDistance < 1.15) endMission(true);
+  else if (!state.ending && (state.missionTime > 34 || state.battery <= 0)) endMission(false);
 }
 
 function animate(now) {
