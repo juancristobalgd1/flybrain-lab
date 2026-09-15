@@ -1,6 +1,6 @@
 import{test}from'node:test';
 import assert from'node:assert/strict';
-import{distance3,wrapAngle,rewardStep,phaseForEpisode,targetForEpisode,successRate}from'../lib/drone-core.mjs';
+import{distance3,wrapAngle,rewardStep,phaseForEpisode,targetForEpisode,warehouseTargetForEpisode,successRate}from'../lib/drone-core.mjs';
 
 test('distance3 calcula distancia euclídea 3D',()=>assert.equal(distance3({x:0,y:0,z:0},{x:3,y:4,z:12}),13));
 test('wrapAngle mantiene el ángulo entre -PI y PI',()=>assert.ok(Math.abs(wrapAngle(Math.PI*3)-Math.PI)<1e-9));
@@ -14,4 +14,11 @@ test('phaseForEpisode reserva cada décimo episodio para TEST',()=>{assert.equal
 test('targetForEpisode es determinista y successRate usa la ventana solicitada',()=>{
   assert.deepEqual(targetForEpisode(42),targetForEpisode(42));
   assert.equal(successRate([false,true,true],2),1);
+});
+test('warehouseTargetForEpisode devuelve una ubicación de pasillo determinista',()=>{
+  const target=warehouseTargetForEpisode(23,'normal');
+  assert.match(target.aisle,/^A0[1-4]$/);
+  assert.match(target.bin,/^A0[1-4] · \d{3}$/);
+  assert.ok([-18,-6,6,18].includes(target.z));
+  assert.deepEqual(target,warehouseTargetForEpisode(23,'normal'));
 });
