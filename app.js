@@ -306,6 +306,7 @@ let brainNodes = [];
 let pendingAction = 5;
 let decisionClock = 0;
 let previousTime = performance.now();
+let workerInitialized = false;
 
 function fit() {
   const bounds = world.getBoundingClientRect();
