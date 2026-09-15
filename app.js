@@ -581,8 +581,11 @@ function drawBrain(data) {
   brainCtx.lineWidth = .45;
   brainNodes.forEach((node, index) => {
     for (let edge = 1; edge < 3; edge += 1) {
-      const other = brainNodes[(index * 17 + edge * 31) % brainNodes.length];
-      brainCtx.strokeStyle = activeNodes.has(index) ? '#c7ff4380' : '#6b879130';
+      const otherIndex = (index * 17 + edge * 31) % brainNodes.length;
+      const other = brainNodes[otherIndex];
+      const activeEdge = activeNodes.has(index) || activeNodes.has(otherIndex);
+      brainCtx.strokeStyle = activeEdge ? '#c7ff43b0' : '#34505ccc';
+      brainCtx.lineWidth = activeEdge ? .7 : .45;
       brainCtx.beginPath();
       brainCtx.moveTo(node.x, node.y);
       brainCtx.lineTo(other.x, other.y);
@@ -592,11 +595,14 @@ function drawBrain(data) {
   brainNodes.forEach((node, index) => {
     const active = activeNodes.has(index);
     const radius = active ? 1.7 + (index % 3) : .8;
-    brainCtx.fillStyle = active ? (node.layer === 0 ? '#64dcff' : node.layer === 2 ? '#c7ff43' : '#a9b7bd') : '#49616d55';
+    brainCtx.fillStyle = active ? (node.layer === 0 ? '#64dcff' : node.layer === 2 ? '#c7ff43' : '#d3dde0') : '#6f8792cc';
+    brainCtx.shadowBlur = active ? 7 : 0;
+    brainCtx.shadowColor = node.layer === 0 ? '#64dcff' : '#c7ff43';
     brainCtx.beginPath();
     brainCtx.arc(node.x, node.y, radius, 0, Math.PI * 2);
     brainCtx.fill();
   });
+  brainCtx.shadowBlur = 0;
 }
 
 function drawChart() {
@@ -647,6 +653,18 @@ function drawFallback() {
       fallbackCtx.fillRect(82, row.y - level * 15, width - 164, 5);
     }
   });
+  if (state.route.length > 1) {
+    fallbackCtx.strokeStyle = '#64dcff99';
+    fallbackCtx.lineWidth = 1.5;
+    fallbackCtx.setLineDash([5, 5]);
+    fallbackCtx.beginPath();
+    state.route.forEach((point, index) => {
+      const projected = projectFallback(point.x, point.z, point.y, width, height);
+      index ? fallbackCtx.lineTo(projected.x, projected.y) : fallbackCtx.moveTo(projected.x, projected.y);
+    });
+    fallbackCtx.stroke();
+    fallbackCtx.setLineDash([]);
+  }
   const target = projectFallback(drone.target.x, drone.target.z, drone.target.y, width, height);
   fallbackCtx.strokeStyle = '#c7ff43';
   fallbackCtx.globalAlpha = .72;
