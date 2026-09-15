@@ -30,7 +30,11 @@ function step(features,reward=0,train=true,teacher=5){
   const logits=new Float32Array(ACTIONS);for(let a=0;a<ACTIONS;a++)for(let i=INPUTS;i<N;i++)logits[a]+=readout[a*N+i]*rates[i];
   const max=Math.max(...logits),probs=Array.from(logits,x=>Math.exp((x-max)*.35)),sum=probs.reduce((a,b)=>a+b,0);for(let i=0;i<ACTIONS;i++)probs[i]/=sum;
   let action=probs.indexOf(Math.max(...probs)),guided=false,epsilon=train?Math.max(.08,.42-decisions/9000):0;
-  if(train&&rng()<epsilon){action=rng()<.72?teacher:Math.floor(rng()*ACTIONS);guided=action===teacher}
+  // Curriculum guidance keeps early missions solvable while the readout learns.
+  // It decays to a small floor, so later behavior is increasingly produced by the SNN.
+  const curriculum=train?Math.max(.18,.88-decisions/3000):0;
+  if(train&&rng()<curriculum){action=teacher;guided=true}
+  else if(train&&rng()<epsilon){action=rng()<.72?teacher:Math.floor(rng()*ACTIONS);guided=action===teacher}
   eligibility.fill(0);for(let i=INPUTS;i<N;i++)if(rates[i])eligibility[action*N+i]=rates[i]/STEPS;
   lastAction=action;decisions++;
   const active=[];for(let i=0;i<N&&active.length<55;i++)if(rates[i])active.push(i);
