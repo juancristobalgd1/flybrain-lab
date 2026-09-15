@@ -51,6 +51,7 @@ const state = {
   autonomousDecisions: 0,
   safetyStops: 0,
   stallTime: 0,
+  recoveryTime: 0,
   targetMeta: null,
   ending: false,
 };
@@ -371,6 +372,7 @@ function resetMission() {
   state.autonomousDecisions = 0;
   state.safetyStops = 0;
   state.stallTime = 0;
+  state.recoveryTime = 0;
   state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
@@ -747,6 +749,7 @@ function tick(dt) {
     worker.postMessage({ type: 'step', features: features(), reward: state.lastStepReward, train: state.episode % 10 !== 0, teacher: teacher() });
     decisionClock = 0;
   }
+  if (state.recoveryTime > 0) pendingAction = teacher();
   applyAction(pendingAction, dt * state.speed);
   enforceGeofence();
   const collision = checkCollision();
@@ -756,13 +759,13 @@ function tick(dt) {
   else state.stallTime = Math.max(0, state.stallTime - simDt * .5);
   if (state.stallTime > 3) {
     const recovery = teacher();
-    if (recovery !== pendingAction) {
-      pendingAction = recovery;
-      state.safetyStops += 1;
-      log(`Safety assist · ${currentWaypoint().phase}`);
-    }
+    pendingAction = recovery;
+    state.recoveryTime = 4;
+    state.safetyStops += 1;
+    log(`Safety assist · ${currentWaypoint().phase}`);
     state.stallTime = 0;
   }
+  state.recoveryTime = Math.max(0, state.recoveryTime - simDt);
   const reached = advanceWaypointIfReady(currentDistance);
   const scanCompleted = updateScan(dt);
   const batteryBefore = state.battery;
