@@ -50,6 +50,7 @@ const state = {
   guidedDecisions: 0,
   autonomousDecisions: 0,
   safetyStops: 0,
+  stallTime: 0,
   targetMeta: null,
   ending: false,
 };
@@ -369,6 +370,7 @@ function resetMission() {
   state.guidedDecisions = 0;
   state.autonomousDecisions = 0;
   state.safetyStops = 0;
+  state.stallTime = 0;
   state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
@@ -748,10 +750,21 @@ function tick(dt) {
   applyAction(pendingAction, dt * state.speed);
   enforceGeofence();
   const collision = checkCollision();
+  const simDt = dt * state.speed;
   const currentDistance = distance3(drone.p, currentWaypoint());
+  if (!collision && currentDistance > 1.2 && previousDistance - currentDistance < .015) state.stallTime += simDt;
+  else state.stallTime = Math.max(0, state.stallTime - simDt * .5);
+  if (state.stallTime > 3) {
+    const recovery = teacher();
+    if (recovery !== pendingAction) {
+      pendingAction = recovery;
+      state.safetyStops += 1;
+      log(`Safety assist · ${currentWaypoint().phase}`);
+    }
+    state.stallTime = 0;
+  }
   const reached = advanceWaypointIfReady(currentDistance);
   const scanCompleted = updateScan(dt);
-  const simDt = dt * state.speed;
   const batteryBefore = state.battery;
   state.battery = Math.max(0, state.battery - batteryDrain({ dt: simDt, speed: drone.v.length(), altitude: drone.p.y, payload: state.anomalies ? .5 : 0 }));
   state.lastStepReward = rewardStep({ previousDistance, distance: currentDistance, collision, reached: reached || scanCompleted, batteryUsed: batteryBefore - state.battery });
@@ -763,7 +776,7 @@ function tick(dt) {
   updateRoute();
   const atDock = state.routeIndex === state.route.length - 1 && distance3(drone.p, currentWaypoint()) <= .85;
   if (!state.ending && state.scanConfirmed && atDock) endMission(true);
-  else if (!state.ending && (state.missionTime > 90 || state.battery <= 0)) endMission(false);
+  else if (!state.ending && (state.missionTime > 120 || state.battery <= 0)) endMission(false);
 }
 
 function animate(now) {
