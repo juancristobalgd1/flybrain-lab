@@ -21,7 +21,7 @@ The browser presents two views of the same episode. The operator sees a Three.js
 
 ## P1 mission contract
 
-An episode is no longer considered successful merely because the drone reaches a point. Each mission follows six deterministic checkpoints: `TAKEOFF`, `AISLE ENTRY`, `SCAN`, `AISLE EXIT`, `RETURN` and `DOCK`. The scan checkpoint requires the drone to be within 2.5 m of the bin, below 0.35 m/s, above 1.2 m of clearance and stable for two simulated seconds. Only after the scan is verified can the route return to the dock and close successfully. A geofence and collision edge detector apply a hover brake and record safety stops.
+An episode is no longer considered successful merely because the drone reaches a point. Each mission follows six deterministic checkpoints: `TAKEOFF`, `AISLE ENTRY`, `SCAN`, `AISLE EXIT`, `RETURN` and `DOCK`. The scan checkpoint requires the drone to be within 2.5 m of the bin, below 0.35 m/s, above 1.2 m of clearance and stable for two simulated seconds. Only after the scan is verified can the route return to the dock and close successfully. A geofence and collision edge detector apply a hover brake and record safety stops; a recovery assist is only allowed after three simulated seconds without meaningful progress and is also visible in telemetry.
 
 The UI exposes `SCAN`, `AUTONOMY` and `SAFETY` telemetry so guided curriculum decisions are not confused with autonomous policy decisions. This remains a software-in-the-loop warehouse simulation; barcode/OCR, SLAM and physical flight-controller adapters are future stages.
 
