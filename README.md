@@ -8,6 +8,8 @@ https://juancristobalgd1.github.io/flybrain-lab/
 
 The page runs entirely in the browser. Three.js renders the world, a Web Worker executes a sparse 512-neuron LIF reservoir, and the motor readout updates from step rewards. The learned readout is checkpointed in `localStorage` so a returning browser can continue from its last completed mission.
 
+For a reproducible clean run, append `?fresh=1` to the preview URL. Without that parameter, episode history and learned readout weights remain persistent in the browser.
+
 ## What is simulated
 
 - 3D drone with thrust, yaw, drag, altitude and battery dynamics;
