@@ -642,14 +642,14 @@ function tick(dt) {
   const collision = checkCollision();
   const currentDistance = distance3(drone.p, drone.target);
   state.battery = Math.max(0, state.battery - dt * .0008);
-  state.lastStepReward = (currentDistance < 1.15 ? 2 : 0) + (previousDistance - currentDistance) * .12 - (collision ? .8 : 0) - .001;
+  state.lastStepReward = (currentDistance < 1.8 ? 2 : 0) + (previousDistance - currentDistance) * .12 - (collision ? .8 : 0) - .001;
   state.reward += state.lastStepReward;
   setText('reward', state.reward.toFixed(3));
   $('success').textContent = `${(successRate(state.successHistory) * 100).toFixed(1)}%`;
   $('anomalies').textContent = state.anomalies;
   updateRoute();
-  if (!state.ending && currentDistance < 1.15) endMission(true);
-  else if (!state.ending && (state.missionTime > 34 || state.battery <= 0)) endMission(false);
+  if (!state.ending && currentDistance < 1.8) endMission(true);
+  else if (!state.ending && (state.missionTime > 40 || state.battery <= 0)) endMission(false);
 }
 
 function animate(now) {
