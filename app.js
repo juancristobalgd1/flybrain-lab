@@ -356,7 +356,7 @@ function resetMission() {
   $('missionLabel').textContent = state.difficulty === 'hard' ? 'EXCEPTION SWEEP' : 'CYCLE COUNT';
   $('flightMode').textContent = state.difficulty === 'easy' ? 'OPEN AISLE' : state.difficulty === 'hard' ? 'DENSE STORAGE' : 'AISLE FOLLOW';
   renderQueue();
-  log(`Mission ready · ${state.targetMeta.aisle} · ${state.targetMeta.bin}`);
+  log(`Mission ready · ${state.targetMeta.bin}`);
   localStorage.setItem(storage.episode, state.episode);
 }
 
