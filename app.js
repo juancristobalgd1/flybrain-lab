@@ -340,7 +340,7 @@ function resetMission() {
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
   drone.target.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
-  drone.p.set(-31, 3.2, state.targetMeta.z > 0 ? 6 : -6);
+  drone.p.set(-31, 3.2, state.targetMeta.z);
   drone.v.set(0, 0, 0);
   drone.yaw = 0;
   drone.collision = false;
