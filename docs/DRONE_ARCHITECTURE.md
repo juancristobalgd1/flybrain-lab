@@ -39,7 +39,7 @@ forward flight + IMU heading/speed
           ↓
   dopamine/write gate
           ↓
- eight directional fast-weight columns
+eight directional fast-weight columns
           ↓ decay every decision
   outbound vector → inverted home vector
           ↓ only after a verified scan
@@ -49,8 +49,8 @@ forward flight + IMU heading/speed
 `lib/fast-weight-memory.mjs` is pure and independent of Three.js. Each decision decays the
 eight columns, then writes only when the drone is moving, the sensor signal is usable and the
 write gate is open. The stored vector is converted to a homing vector by a 180° inversion. The
-read is bounded and only active after `SCAN VERIFIED`, so the memory cannot override collision,
-geofence or recovery safety logic. The worker reports writes, decay, vector magnitude,
+write is disabled after `SCAN VERIFIED`; the read is bounded and only active on the return leg,
+so the memory cannot override collision, geofence or recovery safety logic. The worker reports writes, decay, vector magnitude,
 confidence, gate state and read usage to the dashboard.
 
 This is an engineering approximation of the fast-weight idea shown in the referenced fly-

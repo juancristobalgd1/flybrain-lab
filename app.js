@@ -489,7 +489,8 @@ function features() {
 function navigationObservation(dt) {
   const speed = Math.hypot(drone.v.x, drone.v.z);
   const heading = speed > .03 ? Math.atan2(drone.v.z, drone.v.x) : drone.yaw;
-  const writeGate = speed > .03 && !drone.collision && state.recoveryTime <= 0;
+  const returnMode = state.scanConfirmed && state.routeIndex > state.scanIndex;
+  const writeGate = !returnMode && speed > .03 && !drone.collision && state.recoveryTime <= 0;
   const sensorQuality = drone.collision ? .25 : state.recoveryTime ? .6 : 1;
   return {
     heading,
@@ -498,7 +499,7 @@ function navigationObservation(dt) {
     dopamine: writeGate ? Math.min(1, speed / 1.2) * sensorQuality : 0,
     writeGate,
     yaw: drone.yaw,
-    returnMode: state.scanConfirmed && state.routeIndex > state.scanIndex,
+    returnMode,
     memoryGain: state.recoveryTime ? .9 : .6,
   };
 }
