@@ -3,44 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#07090b">
-  <meta name="description" content="Interactive 3D drone autonomy laboratory driven by a fly-connectome-inspired spiking network.">
-  <title>FlyBrain Drone Lab — Neural Autonomy in 3D</title>
-  <link rel="stylesheet" href="styles.css?v=5">
+  <meta name="theme-color" content="#070b10">
+  <meta name="description" content="VYYQ autonomous warehouse inventory flight simulator.">
+  <title>VYYQ Warehouse Autonomy</title>
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./"><span class="brand-mark">F</span><span>FLYBRAIN <b>DRONE LAB</b></span></a>
-    <div class="live"><i></i><span id="runStatus">AUTONOMY ONLINE</span></div>
-    <a class="source" href="https://github.com/juancristobalgd1/flybrain-lab" target="_blank" rel="noreferrer">SOURCE ↗</a>
+    <a class="brand" href="./" aria-label="VYYQ Warehouse Autonomy home">
+      <span class="brand-mark">V</span>
+      <span class="brand-name">VYYQ <b>WAREHOUSE AUTONOMY</b></span>
+    </a>
+    <div class="facility"><span>FACILITY</span><strong>WH-01 · BILBAO</strong></div>
+    <div class="top-actions">
+      <div class="live"><i></i><span id="runStatus">AUTONOMY ONLINE</span></div>
+      <a class="source" href="https://github.com/juancristobalgd1/flybrain-lab" target="_blank" rel="noreferrer">REPOSITORY ↗</a>
+    </div>
   </header>
 
   <main>
     <section class="hero">
       <div>
-        <p class="eyebrow">EXPERIMENT 004 · CONNECTOME-INSPIRED FLIGHT</p>
-        <h1>A fly brain.<br><em>A drone body.</em></h1>
+        <p class="eyebrow">VYYQ / AUTONOMOUS INVENTORY</p>
+        <h1>Every shelf.<br><em>Mapped in motion.</em></h1>
       </div>
-      <p>Watch a sparse spiking controller learn target navigation and obstacle avoidance inside a deterministic 3D world. No remote control. No hidden LLM.</p>
+      <p class="hero-copy">A flying inventory operator that navigates aisles, reads its surroundings and learns the safest route through your warehouse.</p>
     </section>
 
-    <section class="mission-bar">
-      <div><span>MISSION</span><strong>REACH THE BEACON</strong></div>
+    <section class="mission-bar" aria-label="Mission overview">
+      <div><span>MISSION</span><strong id="missionLabel">CYCLE COUNT</strong></div>
+      <div><span>FLIGHT MODE</span><strong id="flightMode">AISLE FOLLOW</strong></div>
+      <div><span>SENSORS</span><strong>IMU + 6 LIDAR</strong></div>
       <div><span>CONTROLLER</span><strong>512N LIF PROXY</strong></div>
-      <div><span>SENSORS</span><strong>9-AXIS + 6 LIDAR</strong></div>
-      <div><span>LEARNING</span><strong id="learningMode">TRAIN · PLASTIC</strong></div>
       <div><span>SAFETY</span><strong>SIMULATION ONLY</strong></div>
     </section>
 
     <section class="workspace">
       <div class="viewport-wrap">
-        <div id="viewport" aria-label="Interactive 3D drone training environment"></div>
-        <div class="viewport-head"><span>LIVE WORLD · THREE.JS <b>· SEED <i id="seed">381</i></b></span><span id="cameraLabel">CHASE CAMERA</span></div>
+        <div id="viewport" aria-label="Interactive 3D warehouse digital twin"></div>
+        <div class="viewport-head">
+          <span>WH-01 / LIVE DIGITAL TWIN <b>· SEED <i id="seed">381</i></b></span>
+          <span id="cameraLabel">CHASE VIEW</span>
+        </div>
+        <div class="viewport-chip"><i></i> AUTONOMOUS INVENTORY FLIGHT</div>
         <div class="reticle"><i></i></div>
-        <div class="target-card"><span>NEXT BEACON</span><strong id="distance">— m</strong><small id="bearing">bearing —°</small></div>
+        <div class="mission-card">
+          <span>NEXT SCAN LOCATION</span>
+          <strong id="missionTarget">BIN A03 · 014</strong>
+          <small><b id="aisle">AISLE A03</b> · <span id="distance">— m</span> · <span id="bearing">bearing —°</span></small>
+        </div>
+        <div class="route-card">
+          <span>ROUTE COVERAGE</span>
+          <strong id="routeProgress">0%</strong>
+          <small id="routeDetail">0 / 24 scan points</small>
+          <i><b id="routeBar"></b></i>
+        </div>
         <div class="flight-state"><span id="action">HOVER</span><i></i><span id="velocity">0.0 m/s</span></div>
-        <div class="event-log" id="eventLog"><p><time>00:00:00</time>Booting neural flight loop</p></div>
-        <div class="camera-actions">
+        <div class="event-log" id="eventLog"><p><time>00:00:00</time>Booting warehouse flight loop</p></div>
+        <div class="camera-actions" aria-label="Camera views">
           <button data-camera="chase" class="active">CHASE</button>
           <button data-camera="orbit">ORBIT</button>
           <button data-camera="top">MAP</button>
@@ -48,9 +68,16 @@
       </div>
 
       <aside class="telemetry">
-        <div class="section-head"><span>NEURAL TELEMETRY</span><b id="spikeRate">0 spikes/s</b></div>
-        <canvas id="brain" aria-label="Live spiking-neural-network activity"></canvas>
-        <div class="brain-key"><span><i class="sensory"></i>SENSORY</span><span><i class="relay"></i>CONNECTOME</span><span><i class="motor"></i>MOTOR</span></div>
+        <div class="section-head"><span>FLIGHT COMPUTER</span><b id="spikeRate">0 spikes/s</b></div>
+        <div class="status-grid">
+          <div><span>LOCALIZATION</span><strong id="localization">99.2%</strong></div>
+          <div><span>LINK</span><strong class="ok" id="connectionStatus">LOCKED</strong></div>
+          <div><span>CLEARANCE</span><strong id="clearance">3.8 m</strong></div>
+        </div>
+        <div class="neural-title"><span>NEURAL ACTIVITY</span><small>512N RESERVOIR · LIVE</small></div>
+        <canvas id="brain" aria-label="Live spiking neural network activity"></canvas>
+        <div class="brain-key"><span><i class="sensory"></i>SENSORY</span><span><i class="relay"></i>RELAY</span><span><i class="motor"></i>MOTOR</span></div>
+        <div class="policy-title"><span>MOTOR POLICY</span><small>confidence-weighted output</small></div>
         <div class="policy">
           <div><span>FORWARD</span><i><b id="p0"></b></i></div>
           <div><span>YAW LEFT</span><i><b id="p1"></b></i></div>
@@ -59,41 +86,50 @@
           <div><span>DESCEND</span><i><b id="p4"></b></i></div>
           <div><span>HOVER</span><i><b id="p5"></b></i></div>
         </div>
+        <div class="inventory-panel">
+          <div class="panel-title"><span>INVENTORY QUEUE</span><b id="queueCount">03 OPEN</b></div>
+          <div id="inventoryRows" class="inventory-rows">
+            <div><i class="scanning"></i><span>BIN A03 · 014</span><b>SCANNING</b></div>
+            <div><i></i><span>BIN A03 · 015</span><b>QUEUED</b></div>
+            <div><i></i><span>BIN A03 · 016</span><b>QUEUED</b></div>
+          </div>
+        </div>
         <div class="decision"><span>CURRENT MOTOR OUTPUT</span><strong id="motorOutput">HOVER</strong><small id="confidence">confidence 0%</small></div>
       </aside>
     </section>
 
-    <section class="metrics">
+    <section class="metrics" aria-label="Mission metrics">
       <article><span>EPISODE</span><strong id="episode">1</strong><small id="phase">TRAIN</small></article>
-      <article><span>SUCCESS RATE</span><strong id="success">0.0%</strong><small>last 100</small></article>
-      <article><span>REWARD</span><strong id="reward">0.000</strong><small>current episode</small></article>
-      <article><span>COLLISIONS</span><strong id="collisions">0</strong><small>current episode</small></article>
+      <article><span>MISSION SUCCESS</span><strong id="success">0.0%</strong><small>last 100</small></article>
+      <article><span>ROUTE COVERAGE</span><strong id="coverage">0%</strong><small>current mission</small></article>
+      <article><span>BINS SCANNED</span><strong id="scanned">0</strong><small>current mission</small></article>
+      <article><span>ANOMALIES</span><strong id="anomalies">0</strong><small>awaiting review</small></article>
       <article><span>BATTERY</span><strong id="battery">100%</strong><small id="altitude">altitude 0.0 m</small></article>
       <article class="curve"><span>LEARNING CURVE</span><canvas id="chart"></canvas></article>
     </section>
 
-    <section class="controls">
+    <section class="controls" aria-label="Simulation controls">
       <button class="primary" id="toggle">Ⅱ&nbsp;&nbsp; PAUSE</button>
       <button id="reset">↻&nbsp;&nbsp; NEW MISSION</button>
       <label>SPEED <input id="speed" type="range" min="1" max="8" value="3"><output id="speedOut">3×</output></label>
-      <label>DIFFICULTY <select id="difficulty"><option value="easy">OPEN FIELD</option><option value="normal" selected>URBAN</option><option value="hard">DENSE CITY</option></select></label>
-      <div class="learning-proof"><i></i><span>WEIGHTS UPDATED</span><strong id="updates">0</strong><small id="meanDelta">mean Δ 0.000000</small></div>
+      <label>PROFILE <select id="difficulty"><option value="easy">OPEN AISLE</option><option value="normal" selected>ACTIVE FACILITY</option><option value="hard">DENSE STORAGE</option></select></label>
+      <div class="learning-proof"><i></i><span>READOUT UPDATES</span><strong id="updates">0</strong><small id="meanDelta">mean Δ 0.000000</small></div>
     </section>
 
     <section class="method">
-      <div><p class="eyebrow">BIOLOGY IN THE LOOP</p><h2>Sense. Spike.<br>Act. Adapt.</h2></div>
+      <div><p class="eyebrow">OPERATIONS LOOP</p><h2>See the stock.<br><em>Move with intent.</em></h2></div>
       <div class="pipeline">
         <span>LIDAR + IMU<small>15 normalized signals</small></span><b>→</b>
-        <span>SPIKE ENCODER<small>Poisson input layer</small></span><b>→</b>
+        <span>WAREHOUSE MAP<small>aisle + rack context</small></span><b>→</b>
         <span>SPARSE LIF CORE<small>512 neurons · fixed graph</small></span><b>→</b>
-        <span>MOTOR ADAPTER<small>reward-modulated readout</small></span>
+        <span>INVENTORY ACTIONS<small>scan · route · report</small></span>
       </div>
-      <p class="disclaimer"><b>Scientific boundary.</b> This public demo executes a real sparse spiking controller in a Web Worker, but it is a compact MaleCNS-inspired proxy—not the complete 166,700-neuron biological connectome. The 3D world and flight dynamics are simulations; no physical drone is connected.</p>
+      <p class="disclaimer"><b>Scientific boundary.</b> This public demo runs a compact MaleCNS-inspired spiking proxy in a Web Worker. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.</p>
     </section>
   </main>
 
-  <footer><span>FLYBRAIN DRONE LAB · OPEN EXPERIMENT</span><span>THREE.JS · WEB WORKER · ZERO BUILD STEP</span></footer>
+  <footer><span>VYYQ · AUTONOMOUS WAREHOUSE SYSTEM</span><span>THREE.JS · WEB WORKER · DIGITAL TWIN</span></footer>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-  <script type="module" src="app.js?v=6"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>

@@ -1,29 +1,29 @@
-# FlyBrain Drone Lab
+# VYYQ Warehouse Autonomy
 
-An interactive, public 3D laboratory for testing a **Drosophila-connectome-inspired spiking controller** on a simulated drone.
+An interactive warehouse digital twin for testing a **Drosophila-connectome-inspired spiking controller** on an autonomous inventory drone.
 
 ## Live preview
 
 https://juancristobalgd1.github.io/flybrain-lab/
 
-The page runs entirely in the browser. Three.js renders the world, a Web Worker executes a sparse 512-neuron LIF reservoir, and the motor readout updates from step rewards. The learned readout is checkpointed in `localStorage` so a returning browser can continue from its last completed mission.
+The page runs in the browser. Three.js renders a warehouse with rack rows, aisles, scan locations and a flying drone. A Web Worker executes a sparse 512-neuron LIF reservoir; its motor readout adapts from mission rewards and is checkpointed in `localStorage`.
 
-For a reproducible clean run, append `?fresh=1` to the preview URL. Without that parameter, episode history and learned readout weights remain persistent in the browser.
+Append `?fresh=1` to the preview URL for a reproducible clean run. Without that parameter, episode history and learned readout weights remain persistent in the browser.
 
 ## What is simulated
 
-- 3D drone with thrust, yaw, drag, altitude and battery dynamics;
-- beacon missions with deterministic episode targets;
-- urban obstacles and six visualized lidar rays;
-- 18 normalized sensor inputs (relative target, bearing, velocity, battery and lidar);
-- six discrete motor outputs: forward, yaw left/right, climb, descend and hover;
+- warehouse digital twin with five rack rows, shelves, cartons, dock and aisle guidance;
+- autonomous drone flight with thrust, yaw, altitude, drag and battery dynamics;
+- deterministic cycle-count missions targeting aisle/bin locations;
+- IMU plus six lidar rays for clearance and obstacle avoidance;
+- 18 normalized sensor inputs and six motor outputs: forward, yaw left/right, climb, descend and hover;
+- route coverage, scan queue, bins verified, anomaly flag and mission-success telemetry;
 - reward-modulated eligibility updates on the motor adapter;
-- train/test episode split, success curve and live spike telemetry;
-- chase, orbit and map camera modes, responsive on mobile.
+- train/test episode split, learning curve, chase/orbit/map cameras and responsive mobile UI.
 
 ## Scientific boundary
 
-This is an executable sparse-spiking **proxy** inspired by the architecture of the MaleCNS project. It does not claim to run the complete 166,700-neuron biological connectome, nor does it guarantee flight performance or profitability. The fixed reservoir, reward rule and simplifications are intentionally visible so the experiment can be measured and replaced incrementally.
+This is an executable sparse-spiking **proxy** inspired by the MaleCNS project. It does not claim to run the complete 166,700-neuron biological connectome. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.
 
 ## Run locally
 
@@ -35,10 +35,10 @@ Open `http://localhost:4173`.
 
 ## Structure
 
-- `index.html` — public 3D lab interface.
-- `app.js` — Three.js scene, flight dynamics, sensors, missions and telemetry.
+- `index.html` — VYYQ operations dashboard and warehouse telemetry UI.
+- `app.js` — Three.js warehouse scene, flight dynamics, sensors and mission state.
 - `drone-brain-worker.js` — sparse LIF reservoir and reward-modulated motor learning.
-- `lib/drone-core.mjs` — pure geometry, target and reward functions.
+- `lib/drone-core.mjs` — pure geometry, target, reward and warehouse mission functions.
 - `tests/drone-core.test.mjs` — deterministic invariants.
 - `trading.html` — archived paper-trading experiment kept for comparison.
 
