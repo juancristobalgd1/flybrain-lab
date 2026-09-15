@@ -495,11 +495,12 @@ function drawBrain(data) {
       layer: index < 20 ? 0 : index > 105 ? 2 : 1,
     }));
   }
+  const activeNodes = new Set(data.active.map(index => index % brainNodes.length));
   brainCtx.lineWidth = .45;
   brainNodes.forEach((node, index) => {
     for (let edge = 1; edge < 3; edge += 1) {
       const other = brainNodes[(index * 17 + edge * 31) % brainNodes.length];
-      brainCtx.strokeStyle = data.active.includes(index) ? '#c7ff4350' : '#6b879318';
+      brainCtx.strokeStyle = activeNodes.has(index) ? '#c7ff4380' : '#6b879130';
       brainCtx.beginPath();
       brainCtx.moveTo(node.x, node.y);
       brainCtx.lineTo(other.x, other.y);
@@ -507,7 +508,7 @@ function drawBrain(data) {
     }
   });
   brainNodes.forEach((node, index) => {
-    const active = data.active.includes(index);
+    const active = activeNodes.has(index);
     const radius = active ? 1.7 + (index % 3) : .8;
     brainCtx.fillStyle = active ? (node.layer === 0 ? '#64dcff' : node.layer === 2 ? '#c7ff43' : '#a9b7bd') : '#49616d55';
     brainCtx.beginPath();
