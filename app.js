@@ -455,7 +455,8 @@ function updateRoute() {
   $('routeBar').style.width = `${progress}%`;
   $('coverage').textContent = `${progress.toFixed(0)}%`;
   $('distance').textContent = `${distance.toFixed(1)} m`;
-  const bearing = THREE.MathUtils.radToDeg(Math.atan2(drone.target.z - drone.p.z, drone.target.x - drone.p.x) - drone.yaw);
+  const bearingRad = Math.atan2(drone.target.z - drone.p.z, drone.target.x - drone.p.x) - drone.yaw;
+  const bearing = THREE.MathUtils.radToDeg(Math.atan2(Math.sin(bearingRad), Math.cos(bearingRad)));
   $('bearing').textContent = `bearing ${Math.round(bearing)}°`;
   $('clearance').textContent = `${(Math.min(...lidar()) * 12).toFixed(1)} m`;
   $('localization').textContent = `${Math.max(96, 99.4 - state.collisions * 1.4).toFixed(1)}%`;
