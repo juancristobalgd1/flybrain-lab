@@ -29,6 +29,21 @@ The reservoir is built once from a deterministic seed so its topology stays stab
 
 The fixed graph is deliberately not presented as the full MaleCNS connectome. The next scientific step is to replace the generated reservoir with a compiled MaleCNS subgraph, preserve this observation/action protocol and compare it against this proxy and a frozen random control under identical warehouse missions.
 
+## Warehouse layout and operator waypoint
+
+The simulator exposes five deterministic facility geometries through the `LAYOUT` control:
+`RACK GRID`, `CROSS AISLE`, `NARROW MAZE`, `OPEN FLOOR` and `DENSE STORAGE`. A layout rebuild
+updates both the Three.js rack geometry and the private obstacle list used by lidar, collision
+checks and target generation, so a visual change cannot silently leave the evaluator using the
+old map. Every switch starts a fresh episode with the same safety and learning boundaries.
+
+`SELECT LOCATION` enables an operator waypoint mode. The next click is ray-cast onto the floor
+plane, clamped to the geofence and moved to the nearest free point when it lands inside a rack.
+The point becomes a manual scan target and the existing dock → entry → scan → return → dock route
+planner is reused. This is a test harness for navigation generalisation, not a remote-control
+command: the worker still receives normalized sensors, and collision, clearance, battery and scan
+verification gates remain active.
+
 ## Episodic fast-weight navigation memory
 
 The return leg now has a separate, small memory path around the spiking reservoir. It is

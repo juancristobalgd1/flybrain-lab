@@ -1,6 +1,7 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { ACTIONS, batteryDrain, distance3, planWarehouseRoute, rewardStep, routeProgress, scanReadiness, successRate, warehouseTargetForEpisode } from './lib/drone-core.mjs';
+import { ACTIONS, batteryDrain, distance3, planWarehouseRoute, rewardStep, routeProgress, scanReadiness, successRate } from './lib/drone-core.mjs';
+import { layoutFor, targetForLayout } from './lib/warehouse-layouts.mjs';
 
 const $ = id => document.getElementById(id);
 const setText = (id, value) => { const element = $(id); if (element) element.textContent = value; };
@@ -28,6 +29,7 @@ const state = {
   running: true,
   speed: 3,
   difficulty: 'normal',
+  layoutId: 'standard',
   episode: Number(localStorage.getItem(storage.episode) || 0),
   reward: 0,
   lastStepReward: 0,
@@ -54,6 +56,8 @@ const state = {
   recoveryTime: 0,
   fastWeight: { vectorX: 0, vectorZ: 0, homeX: 0, homeZ: 0, magnitude: 0, heading: 0, confidence: 0, decay: 1, writeGate: false, dopamine: 0, returnMode: false, used: false, writes: 0, resets: 0, meanDelta: 0 },
   targetMeta: null,
+  manualTarget: null,
+  targetMode: false,
   ending: false,
 };
 
@@ -100,6 +104,11 @@ controls.maxPolarAngle = Math.PI * .47;
 controls.minDistance = 7;
 controls.maxDistance = 64;
 controls.enabled = false;
+const targetRaycaster = new THREE.Raycaster();
+const targetPointer = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let targetSelection = false;
+let controlsBeforeTarget = false;
 
 scene.add(new THREE.HemisphereLight('#c8efff', '#17242d', 2.2));
 const sun = new THREE.DirectionalLight('#d8f5ff', 3.3);
@@ -134,8 +143,7 @@ const boxMaterials = [
   new THREE.MeshStandardMaterial({ color: '#a88962', roughness: .75 }),
   new THREE.MeshStandardMaterial({ color: '#45656d', roughness: .72 }),
 ];
-const rackRows = [-24, -12, 0, 12, 24];
-const aisleCenters = [-18, -6, 6, 18];
+let activeLayout = layoutFor(state.layoutId);
 const obstacles = [];
 
 function clearGroup(group) {
@@ -151,12 +159,14 @@ function addBox(group, geometry, material, x, y, z) {
 
 function createRackRow(z, rowIndex) {
   const row = new THREE.Group();
-  const bayWidth = 6.4;
-  const depth = 2.7;
+  const bayWidth = activeLayout.bayWidth;
+  const depth = activeLayout.rackDepth;
   const levels = [1.45, 3.15, 4.85];
   for (let x = -28; x <= 28; x += bayWidth) {
     const bay = Math.min(bayWidth, 56 - (x + 28));
     const center = x + bay / 2;
+    const crossAisle = activeLayout.crossAisles.some(cross => Math.abs(center - cross) < activeLayout.crossAisleWidth / 2);
+    if (crossAisle) continue;
     [-bay / 2 + .12, bay / 2 - .12].forEach(offset => {
       addBox(row, new THREE.BoxGeometry(.16, 6.2, .16), rackFrame, center + offset, 3.1, z - depth / 2 + .12);
       addBox(row, new THREE.BoxGeometry(.16, 6.2, .16), rackFrame, center + offset, 3.1, z + depth / 2 - .12);
@@ -176,14 +186,15 @@ function createRackRow(z, rowIndex) {
   rackGroup.add(row);
 }
 
-function createWarehouse() {
+function createWarehouse(layoutId = state.layoutId) {
+  activeLayout = layoutFor(layoutId);
   clearGroup(rackGroup);
   clearGroup(aisleGroup);
   clearGroup(lightGroup);
   obstacles.length = 0;
 
-  rackRows.forEach(createRackRow);
-  aisleCenters.forEach((z, index) => {
+  activeLayout.rackRows.forEach(createRackRow);
+  activeLayout.aisleCenters.forEach((z, index) => {
     const stripe = new THREE.Mesh(
       new THREE.PlaneGeometry(56, .08),
       new THREE.MeshBasicMaterial({ color: index % 2 ? '#64dcff' : '#c7ff43', transparent: true, opacity: .4 }),
@@ -195,6 +206,27 @@ function createWarehouse() {
       addBox(aisleGroup, new THREE.BoxGeometry(4.2, .035, .16), new THREE.MeshBasicMaterial({ color: '#2b3d45' }), x, .045, z + 1.1);
     }
   });
+  activeLayout.crossAisles.forEach((x, index) => {
+    const stripe = new THREE.Mesh(
+      new THREE.PlaneGeometry(.1, 56),
+      new THREE.MeshBasicMaterial({ color: index % 2 ? '#64dcff' : '#ffbf69', transparent: true, opacity: .42 }),
+    );
+    stripe.rotation.x = -Math.PI / 2;
+    stripe.position.set(x, .028, 0);
+    aisleGroup.add(stripe);
+    for (let z = -25; z <= 25; z += 10) {
+      addBox(aisleGroup, new THREE.BoxGeometry(.16, .035, 4.2), new THREE.MeshBasicMaterial({ color: '#2b3d45' }), x + 1.1, .045, z);
+    }
+  });
+  if (activeLayout.open) {
+    const openMarker = new THREE.Mesh(
+      new THREE.RingGeometry(12, 12.06, 64),
+      new THREE.MeshBasicMaterial({ color: '#64dcff', transparent: true, opacity: .26, side: THREE.DoubleSide }),
+    );
+    openMarker.rotation.x = -Math.PI / 2;
+    openMarker.position.set(0, .035, 0);
+    aisleGroup.add(openMarker);
+  }
 
   const dock = new THREE.Mesh(
     new THREE.BoxGeometry(7, .06, 6),
@@ -211,7 +243,8 @@ function createWarehouse() {
   aisleGroup.add(dockRing);
 
   for (let x = -24; x <= 24; x += 12) {
-    for (const z of [-18, 6, 18]) {
+    const luminaireZones = activeLayout.aisleCenters.length ? activeLayout.aisleCenters : [-18, 0, 18];
+    for (const z of luminaireZones) {
       const luminaire = new THREE.Mesh(
         new THREE.BoxGeometry(4.4, .08, .18),
         new THREE.MeshBasicMaterial({ color: '#d8f5ff', transparent: true, opacity: .72 }),
@@ -331,7 +364,7 @@ function fit() {
 }
 
 function missionTarget() {
-  return warehouseTargetForEpisode(state.episode, state.difficulty);
+  return targetForLayout(state.episode, state.difficulty, state.layoutId);
 }
 
 function currentWaypoint() {
@@ -385,16 +418,19 @@ function renderQueue() {
   const meta = state.targetMeta;
   const current = meta?.bin || 'A03 · 014';
   const base = Number(current.split('·').at(-1)?.trim() || 14);
+  const manual = Boolean(meta?.custom);
   const rows = [0, 1, 2].map(index => {
-    const label = `BIN ${meta?.aisle || 'A03'} · ${String(base + index).padStart(3, '0')}`;
+    const label = manual
+      ? `TARGET ${meta.x.toFixed(1)} / ${meta.z.toFixed(1)}${index ? ` · ALT ${meta.y.toFixed(1)}m` : ''}`
+      : `BIN ${meta?.aisle || 'A03'} · ${String((Number.isFinite(base) ? base : 14) + index).padStart(3, '0')}`;
     const status = index === 0 ? (state.scanned ? 'VERIFIED' : 'SCANNING') : 'QUEUED';
     return `<div><i class="${index === 0 && !state.scanned ? 'scanning' : ''}"></i><span>${label}</span><b>${status}</b></div>`;
   }).join('');
   $('inventoryRows').innerHTML = rows;
-  $('queueCount').textContent = `${state.scanned ? '02' : '03'} OPEN`;
+  $('queueCount').textContent = `${state.scanned ? (manual ? '00' : '02') : (manual ? '01' : '03')} OPEN`;
 }
 
-function resetMission() {
+function resetMission(targetOverride = null) {
   state.episode += 1;
   state.reward = 0;
   state.lastStepReward = 0;
@@ -414,9 +450,10 @@ function resetMission() {
   state.stallTime = 0;
   state.recoveryTime = 0;
   state.fastWeight = { ...state.fastWeight, vectorX: 0, vectorZ: 0, homeX: 0, homeZ: 0, magnitude: 0, heading: 0, confidence: 0, decay: 1, writeGate: false, dopamine: 0, returnMode: false, used: false, writes: 0, meanDelta: 0, resets: state.fastWeight.resets + 1 };
+  state.manualTarget = targetOverride;
   state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
-  state.targetMeta = missionTarget();
+  state.targetMeta = targetOverride || missionTarget();
   drone.p.set(-32, 3.2, 6);
   drone.v.set(0, 0, 0);
   drone.yaw = 0;
@@ -434,12 +471,14 @@ function resetMission() {
   $('episode').textContent = state.episode.toLocaleString();
   $('phase').textContent = state.episode % 10 === 0 ? 'TEST' : 'TRAIN';
   $('seed').textContent = state.seed;
-  $('missionTarget').textContent = `BIN ${state.targetMeta.bin}`;
-  $('aisle').textContent = `AISLE ${state.targetMeta.aisle}`;
-  $('missionLabel').textContent = state.difficulty === 'hard' ? 'EXCEPTION SWEEP' : 'CYCLE COUNT';
-  $('flightMode').textContent = state.difficulty === 'easy' ? 'OPEN AISLE' : state.difficulty === 'hard' ? 'DENSE STORAGE' : 'AISLE FOLLOW';
+  $('missionTarget').textContent = state.targetMeta.custom ? 'CLICK DESTINATION' : `BIN ${state.targetMeta.bin}`;
+  $('aisle').textContent = state.targetMeta.custom ? `TARGET ${state.targetMeta.x.toFixed(1)} / ${state.targetMeta.z.toFixed(1)}` : `AISLE ${state.targetMeta.aisle}`;
+  $('missionLabel').textContent = state.targetMeta.custom ? 'MANUAL FLIGHT' : state.difficulty === 'hard' ? 'EXCEPTION SWEEP' : 'CYCLE COUNT';
+  $('flightMode').textContent = state.targetMeta.custom ? 'CLICK NAVIGATION' : state.difficulty === 'easy' ? 'OPEN AISLE' : state.difficulty === 'hard' ? 'DENSE STORAGE' : 'AISLE FOLLOW';
+  setText('layoutLabel', activeLayout.label);
+  setText('targetHint', state.targetMeta.custom ? 'TARGET LOCKED · ROUTE REPLANNED' : 'SELECT LOCATION TO TEST A CUSTOM ROUTE');
   renderQueue();
-  log(`Mission ready · ${state.targetMeta.bin}`);
+  log(`Mission ready · ${state.targetMeta.custom ? `target ${state.targetMeta.x.toFixed(1)}, ${state.targetMeta.z.toFixed(1)}` : state.targetMeta.bin}`);
   localStorage.setItem(storage.episode, state.episode);
 }
 
@@ -707,7 +746,7 @@ function drawFallback() {
     fallbackCtx.lineTo(x, height);
     fallbackCtx.stroke();
   }
-  rackRows.forEach(z => {
+  activeLayout.rackRows.forEach(z => {
     const row = projectFallback(0, z, 0, width, height);
     fallbackCtx.fillStyle = '#20353e';
     fallbackCtx.fillRect(70, row.y - 5, width - 140, 10);
@@ -716,6 +755,32 @@ function drawFallback() {
       fallbackCtx.fillRect(82, row.y - level * 15, width - 164, 5);
     }
   });
+  activeLayout.aisleCenters.forEach((z, index) => {
+    const aisle = projectFallback(0, z, 0, width, height);
+    fallbackCtx.strokeStyle = index % 2 ? '#64dcff66' : '#c7ff4366';
+    fallbackCtx.setLineDash([4, 7]);
+    fallbackCtx.beginPath();
+    fallbackCtx.moveTo(70, aisle.y);
+    fallbackCtx.lineTo(width - 70, aisle.y);
+    fallbackCtx.stroke();
+    fallbackCtx.setLineDash([]);
+  });
+  activeLayout.crossAisles.forEach(x => {
+    const cross = projectFallback(x, 0, 0, width, height);
+    fallbackCtx.strokeStyle = '#ffbf6966';
+    fallbackCtx.setLineDash([4, 7]);
+    fallbackCtx.beginPath();
+    fallbackCtx.moveTo(cross.x, horizon);
+    fallbackCtx.lineTo(cross.x, height);
+    fallbackCtx.stroke();
+    fallbackCtx.setLineDash([]);
+  });
+  if (activeLayout.open) {
+    fallbackCtx.strokeStyle = '#64dcff55';
+    fallbackCtx.setLineDash([6, 8]);
+    fallbackCtx.strokeRect(width * .2, height * .42, width * .6, height * .43);
+    fallbackCtx.setLineDash([]);
+  }
   if (state.route.length > 1) {
     fallbackCtx.strokeStyle = '#64dcff99';
     fallbackCtx.lineWidth = 1.5;
@@ -889,6 +954,101 @@ function animate(now) {
   requestAnimationFrame(animate);
 }
 
+function pointFromClick(event) {
+  const bounds = renderSurface.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) return null;
+  const x = event.clientX - bounds.left;
+  const y = event.clientY - bounds.top;
+  if (!renderer) {
+    return new THREE.Vector3(
+      (x - bounds.width / 2) / 15,
+      0,
+      (y - bounds.height * .68) / 11,
+    );
+  }
+  targetPointer.set((x / bounds.width) * 2 - 1, -(y / bounds.height) * 2 + 1);
+  targetRaycaster.setFromCamera(targetPointer, camera);
+  const point = new THREE.Vector3();
+  return targetRaycaster.ray.intersectPlane(groundPlane, point) ? point : null;
+}
+
+function pointBlocked(x, z, margin = .8) {
+  return obstacles.some(obstacle => Math.abs(obstacle.x - x) < obstacle.w / 2 + margin && Math.abs(obstacle.z - z) < obstacle.d / 2 + margin);
+}
+
+function resolveTarget(point) {
+  const bounds = { minX: -29, maxX: 29, minZ: -27, maxZ: 27 };
+  const clampPoint = (x, z) => ({
+    x: THREE.MathUtils.clamp(x, bounds.minX, bounds.maxX),
+    z: THREE.MathUtils.clamp(z, bounds.minZ, bounds.maxZ),
+  });
+  const first = clampPoint(point.x, point.z);
+  if (!pointBlocked(first.x, first.z)) return first;
+  for (let radius = 1; radius <= 10; radius += 1) {
+    for (let index = 0; index < 16; index += 1) {
+      const angle = index / 16 * Math.PI * 2;
+      const candidate = clampPoint(first.x + Math.cos(angle) * radius, first.z + Math.sin(angle) * radius);
+      if (!pointBlocked(candidate.x, candidate.z)) return candidate;
+    }
+  }
+  return first;
+}
+
+function clickTargetMeta(point) {
+  const safe = resolveTarget(point);
+  const altitude = state.difficulty === 'hard' ? 4.5 : state.difficulty === 'easy' ? 3.4 : 3.9;
+  let aisle = 'OPEN';
+  if (activeLayout.aisleCenters.length) {
+    const index = activeLayout.aisleCenters.reduce((best, value, current) => Math.abs(value - safe.z) < Math.abs(activeLayout.aisleCenters[best] - safe.z) ? current : best, 0);
+    aisle = `A${String(index + 1).padStart(2, '0')}`;
+  }
+  return {
+    x: safe.x,
+    y: altitude,
+    z: safe.z,
+    aisle,
+    bin: `CLICK · ${safe.x.toFixed(1)} / ${safe.z.toFixed(1)}`,
+    layoutId: activeLayout.id,
+    custom: true,
+  };
+}
+
+function setTargetSelection(active) {
+  targetSelection = active;
+  state.targetMode = active;
+  if (active) {
+    controlsBeforeTarget = controls.enabled;
+    controls.enabled = false;
+    renderSurface.classList.add('target-selectable');
+    renderSurface.style.cursor = 'crosshair';
+    $('pickTarget').classList.add('active');
+    $('pickTarget').setAttribute('aria-pressed', 'true');
+    setText('targetHint', 'CLICK ON THE FLOOR · FIND A SAFE DESTINATION');
+  } else {
+    controls.enabled = controlsBeforeTarget;
+    renderSurface.classList.remove('target-selectable');
+    renderSurface.style.cursor = '';
+    $('pickTarget').classList.remove('active');
+    $('pickTarget').setAttribute('aria-pressed', 'false');
+    if (!state.targetMeta?.custom) setText('targetHint', 'SELECT LOCATION TO TEST A CUSTOM ROUTE');
+  }
+}
+
+function selectTarget(event) {
+  if (!targetSelection) return;
+  const point = pointFromClick(event);
+  if (!point) {
+    setText('targetHint', 'NO FLOOR HIT · TRY ANOTHER POINT');
+    return;
+  }
+  const meta = clickTargetMeta(point);
+  setTargetSelection(false);
+  resetMission(meta);
+  setText('targetHint', `TARGET LOCKED · ${meta.x.toFixed(1)} / ${meta.z.toFixed(1)} · ROUTE REPLANNED`);
+}
+
+renderSurface.addEventListener('click', selectTarget);
+
 $('toggle').onclick = () => {
   state.running = !state.running;
   $('toggle').innerHTML = state.running ? 'Ⅱ&nbsp;&nbsp; PAUSE' : '▶&nbsp;&nbsp; RESUME';
@@ -897,6 +1057,14 @@ $('toggle').onclick = () => {
 $('reset').onclick = resetMission;
 $('speed').oninput = event => { state.speed = +event.target.value; $('speedOut').textContent = `${state.speed}×`; };
 $('difficulty').onchange = event => { state.difficulty = event.target.value; createWarehouse(); resetMission(); };
+$('layout').onchange = event => {
+  state.layoutId = event.target.value;
+  setTargetSelection(false);
+  createWarehouse(state.layoutId);
+  resetMission();
+  setText('layoutHint', `${activeLayout.label} · ${activeLayout.description}`);
+};
+$('pickTarget').onclick = () => setTargetSelection(!targetSelection);
 document.querySelectorAll('[data-camera]').forEach(button => button.onclick = () => {
   document.querySelectorAll('[data-camera]').forEach(item => item.classList.remove('active'));
   button.classList.add('active');

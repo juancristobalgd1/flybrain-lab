@@ -12,7 +12,7 @@ Append `?fresh=1` to the preview URL for a reproducible clean run. Without that 
 
 ## What is simulated
 
-- warehouse digital twin with five rack rows, shelves, cartons, dock and aisle guidance;
+- warehouse digital twin with switchable rack-grid, cross-aisle, narrow-maze, open-floor and dense-storage layouts;
 - autonomous drone flight with thrust, yaw, altitude, drag, geofence and battery dynamics;
 - deterministic cycle-count missions targeting aisle/bin locations;
 - waypoint route from dock → aisle entry → scan → aisle exit → return → dock;
@@ -22,6 +22,7 @@ Append `?fresh=1` to the preview URL for a reproducible clean run. Without that 
 - geofence brake, collision edge detection and return-to-dock completion gate;
 - reward-modulated eligibility updates on the motor adapter;
 - episodic directional fast-weight memory: a dopamine-gated outbound write, continuous decay and a bounded homing read during the return leg;
+- operator test controls: change the warehouse geometry without leaving the page, or enable `SELECT LOCATION` and click any safe point in the 3D floor to re-plan a mission toward it;
 - train/test episode split, learning curve, autonomous-vs-guided rate, chase/orbit/map cameras and responsive mobile UI.
 
 ## Scientific boundary
@@ -43,6 +44,7 @@ Open `http://localhost:4173`.
 - `drone-brain-worker.js` — sparse LIF reservoir, reward-modulated motor learning and fast-weight navigation memory.
 - `lib/drone-core.mjs` — pure geometry, target, reward and warehouse mission functions.
 - `lib/fast-weight-memory.mjs` — pure directional store, decay, home-vector inversion and bounded motor bias.
+- `lib/warehouse-layouts.mjs` — deterministic warehouse geometries and layout-aware target generation.
 - `tests/drone-core.test.mjs` — deterministic invariants.
 - `tests/fast-weight-memory.test.mjs` — write-gate, decay, inversion, reset and policy-read invariants.
 - `trading.html` — archived paper-trading experiment kept for comparison.

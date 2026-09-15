@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b10">
   <meta name="description" content="VYYQ autonomous warehouse inventory flight simulator.">
   <title>VYYQ Warehouse Autonomy</title>
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="topbar">
@@ -36,6 +36,7 @@
       <div><span>SENSORS</span><strong>IMU + 8 LIDAR</strong></div>
       <div><span>CONTROLLER</span><strong>512N LIF + FAST WEIGHTS</strong></div>
       <div><span>SAFETY</span><strong>SIMULATION ONLY</strong></div>
+      <div><span>LAYOUT</span><strong id="layoutLabel">RACK GRID</strong></div>
     </section>
 
     <section class="workspace">
@@ -129,6 +130,16 @@
       <button id="reset">↻&nbsp;&nbsp; NEW MISSION</button>
       <label>SPEED <input id="speed" type="range" min="1" max="8" value="3"><output id="speedOut">3×</output></label>
       <label>PROFILE <select id="difficulty"><option value="easy">OPEN AISLE</option><option value="normal" selected>ACTIVE FACILITY</option><option value="hard">DENSE STORAGE</option></select></label>
+      <label>LAYOUT <select id="layout" aria-label="Warehouse layout">
+        <option value="standard" selected>RACK GRID</option>
+        <option value="cross">CROSS AISLE</option>
+        <option value="narrow">NARROW MAZE</option>
+        <option value="open">OPEN FLOOR</option>
+        <option value="dense">DENSE STORAGE</option>
+      </select></label>
+      <button id="pickTarget" class="target-button" type="button" aria-pressed="false">⌖&nbsp;&nbsp; SELECT LOCATION</button>
+      <small id="targetHint" class="target-hint">SELECT LOCATION TO TEST A CUSTOM ROUTE</small>
+      <small id="layoutHint" class="layout-hint">RACK GRID · cinco filas paralelas</small>
       <div class="learning-proof"><i></i><span>READOUT UPDATES</span><strong id="updates">0</strong><small id="meanDelta">mean Δ 0.000000</small></div>
     </section>
 
@@ -146,6 +157,6 @@
 
   <footer><span>VYYQ · AUTONOMOUS WAREHOUSE SYSTEM</span><span>THREE.JS · WEB WORKER · DIGITAL TWIN</span></footer>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-  <script type="module" src="app.js?v=21"></script>
+  <script type="module" src="app.js?v=22"></script>
 </body>
 </html>
