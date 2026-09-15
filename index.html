@@ -58,7 +58,7 @@
           <small id="routeDetail">0 / 24 scan points</small>
           <i><b id="routeBar"></b></i>
         </div>
-        <div class="flight-state"><span id="action">HOVER</span><i></i><span id="velocity">0.0 m/s</span></div>
+        <div class="flight-state"><span id="missionPhase">TAKEOFF</span><i></i><span id="action">HOVER</span><span id="velocity">0.0 m/s</span></div>
         <div class="event-log" id="eventLog"><p><time>00:00:00</time>Booting warehouse flight loop</p></div>
         <div class="camera-actions" aria-label="Camera views">
           <button data-camera="chase" class="active">CHASE</button>
@@ -73,6 +73,11 @@
           <div><span>LOCALIZATION</span><strong id="localization">99.2%</strong></div>
           <div><span>LINK</span><strong class="ok" id="connectionStatus">LOCKED</strong></div>
           <div><span>CLEARANCE</span><strong id="clearance">3.8 m</strong></div>
+        </div>
+        <div class="ops-strip">
+          <div><span>SCAN</span><strong id="scanConfidence">0%</strong></div>
+          <div><span>AUTONOMY</span><strong id="autonomyRate">0%</strong></div>
+          <div><span>SAFETY</span><strong id="safetyState">ARMED</strong></div>
         </div>
         <div class="neural-title"><span>NEURAL ACTIVITY</span><small>512N RESERVOIR · LIVE</small></div>
         <canvas id="brain" aria-label="Live spiking neural network activity"></canvas>
@@ -130,6 +135,6 @@
 
   <footer><span>VYYQ · AUTONOMOUS WAREHOUSE SYSTEM</span><span>THREE.JS · WEB WORKER · DIGITAL TWIN</span></footer>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-  <script type="module" src="app.js?v=13"></script>
+  <script type="module" src="app.js?v=14"></script>
 </body>
 </html>
