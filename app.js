@@ -2,6 +2,7 @@ import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 import { ACTIONS, batteryDrain, distance3, planWarehouseRoute, rewardStep, routeProgress, scanReadiness, successRate } from './lib/drone-core.mjs';
 import { layoutFor, targetForLayout } from './lib/warehouse-layouts.mjs';
+import { INVENTORY_STATUS, createInventoryLedger, inventoryReading, inventoryStatusLabel, inventorySummary, markScanning, reconcileScan } from './lib/inventory-core.mjs';
 
 const $ = id => document.getElementById(id);
 const setText = (id, value) => { const element = $(id); if (element) element.textContent = value; };
@@ -58,6 +59,7 @@ const state = {
   targetMeta: null,
   manualTarget: null,
   targetMode: false,
+  inventory: { records: [], activeIndex: 0, summary: inventorySummary([]), lastScan: null },
   ending: false,
 };
 
@@ -374,7 +376,8 @@ function currentWaypoint() {
 function setMissionPhase() {
   const waypoint = currentWaypoint();
   setText('missionPhase', waypoint.phase || 'FLIGHT');
-  setText('scanStatus', state.scanConfirmed ? 'SCAN VERIFIED' : state.routeIndex === state.scanIndex ? 'SCAN STANDBY' : 'TRANSIT');
+  const inventoryState = state.inventory.lastScan?.status === INVENTORY_STATUS.EXCEPTION ? 'EXCEPTION REVIEW' : 'SCAN VERIFIED';
+  setText('scanStatus', state.scanConfirmed ? inventoryState : state.routeIndex === state.scanIndex ? 'SCAN STANDBY' : 'TRANSIT');
   setText('safetyState', state.safetyStops ? `${state.safetyStops} STOPS` : 'ARMED');
 }
 
@@ -414,20 +417,37 @@ function updateFastWeightUI() {
   updateMemoryVisual();
 }
 
-function renderQueue() {
-  const meta = state.targetMeta;
-  const current = meta?.bin || 'A03 · 014';
-  const base = Number(current.split('·').at(-1)?.trim() || 14);
-  const manual = Boolean(meta?.custom);
-  const rows = [0, 1, 2].map(index => {
-    const label = manual
-      ? `TARGET ${meta.x.toFixed(1)} / ${meta.z.toFixed(1)}${index ? ` · ALT ${meta.y.toFixed(1)}m` : ''}`
-      : `BIN ${meta?.aisle || 'A03'} · ${String((Number.isFinite(base) ? base : 14) + index).padStart(3, '0')}`;
-    const status = index === 0 ? (state.scanned ? 'VERIFIED' : 'SCANNING') : 'QUEUED';
-    return `<div><i class="${index === 0 && !state.scanned ? 'scanning' : ''}"></i><span>${label}</span><b>${status}</b></div>`;
+function renderInventory() {
+  const records = state.inventory.records || [];
+  const summary = state.inventory.summary || inventorySummary(records);
+  const active = records[state.inventory.activeIndex] || records[0];
+  const rows = records.map(record => {
+    const label = record.bin.startsWith('CLICK') ? record.bin : `BIN ${record.bin}`;
+    const statusClass = record.status === INVENTORY_STATUS.SCANNING ? 'scanning' : record.status === INVENTORY_STATUS.EXCEPTION ? 'exception' : record.status === INVENTORY_STATUS.VERIFIED ? 'verified' : '';
+    return `<div class="inventory-row ${statusClass}"><i class="${statusClass}"></i><span><b>${label}</b><small>${record.sku} · EXP ${record.expectedQty}</small></span><b>${inventoryStatusLabel(record.status)}</b></div>`;
   }).join('');
+  const openCount = records.filter(record => record.status === INVENTORY_STATUS.PENDING || record.status === INVENTORY_STATUS.SCANNING).length;
+  const accuracy = summary.binsScanned ? `${(summary.accuracy * 100).toFixed(1)}%` : '—';
+  const variance = summary.binsScanned ? `${summary.varianceUnits > 0 ? '+' : ''}${summary.varianceUnits}` : '—';
+  const units = summary.binsScanned ? `${summary.countedUnits}/${summary.expectedUnits}` : '—';
   $('inventoryRows').innerHTML = rows;
-  $('queueCount').textContent = `${state.scanned ? (manual ? '00' : '02') : (manual ? '01' : '03')} OPEN`;
+  setText('queueCount', `${String(openCount).padStart(2, '0')} OPEN`);
+  setText('inventoryAccuracy', accuracy);
+  setText('inventoryVariance', variance);
+  setText('inventoryUnits', units);
+  setText('inventoryMetricAccuracy', accuracy);
+  setText('inventoryMetricDetail', `${summary.binsScanned}/${summary.binsTotal} bins · ${summary.exceptions} exceptions`);
+  setText('currentSku', state.inventory.lastScan ? `${state.inventory.lastScan.sku} · ${state.inventory.lastScan.bin}` : active ? `${active.sku} · ${active.bin}` : 'SKU —');
+  setText('inventoryScanState', state.inventory.lastScan ? `${inventoryStatusLabel(state.inventory.lastScan.status)} · ${Math.round(state.inventory.lastScan.confidence * 100)}%` : active ? 'SENSOR READY · AWAITING READ' : 'NO ACTIVE BIN');
+  const varianceElement = $('inventoryVariance');
+  if (varianceElement) varianceElement.classList.toggle('warning', summary.varianceUnits !== 0);
+  setText('scanned', summary.binsScanned);
+  setText('anomalies', summary.exceptions);
+}
+
+// Kept as a small compatibility wrapper for mission lifecycle calls.
+function renderQueue() {
+  renderInventory();
 }
 
 function resetMission(targetOverride = null) {
@@ -443,7 +463,7 @@ function resetMission(targetOverride = null) {
   state.scanConfirmed = false;
   state.scanConfidence = 0;
   state.scanned = 0;
-  state.anomalies = state.episode % 9 === 0 ? 1 : 0;
+  state.anomalies = 0;
   state.guidedDecisions = 0;
   state.autonomousDecisions = 0;
   state.safetyStops = 0;
@@ -461,6 +481,13 @@ function resetMission(targetOverride = null) {
   pendingAction = 5;
   state.route = planWarehouseRoute(drone.p, state.targetMeta);
   state.initialDistance = distance3(drone.p, state.targetMeta);
+  const records = createInventoryLedger({ episode: state.episode, layoutId: state.layoutId, targetMeta: state.targetMeta });
+  state.inventory = {
+    records: markScanning(records, 0),
+    activeIndex: 0,
+    summary: inventorySummary(records),
+    lastScan: null,
+  };
   targetGroup.position.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
   activateWaypoint();
   updateRouteGeometry();
@@ -478,7 +505,8 @@ function resetMission(targetOverride = null) {
   setText('layoutLabel', activeLayout.label);
   setText('targetHint', state.targetMeta.custom ? 'TARGET LOCKED · ROUTE REPLANNED' : 'SELECT LOCATION TO TEST A CUSTOM ROUTE');
   renderQueue();
-  log(`Mission ready · ${state.targetMeta.custom ? `target ${state.targetMeta.x.toFixed(1)}, ${state.targetMeta.z.toFixed(1)}` : state.targetMeta.bin}`);
+  setText('inventoryMode', 'AUTONOMOUS');
+  log(`Mission ready · ledger armed · ${state.targetMeta.custom ? `target ${state.targetMeta.x.toFixed(1)}, ${state.targetMeta.z.toFixed(1)}` : state.targetMeta.bin}`);
   localStorage.setItem(storage.episode, state.episode);
 }
 
@@ -850,11 +878,28 @@ function updateScan(dt) {
   state.scanConfidence = readiness.inPosition ? readiness.progress : 0;
   if (!readiness.ready) return false;
   state.scanConfirmed = true;
-  state.scanned = 1;
   state.scanConfidence = 1;
+  const activeRecord = state.inventory.records[state.inventory.activeIndex] || state.inventory.records[0];
+  if (activeRecord) {
+    const reading = inventoryReading({
+      episode: state.episode,
+      index: state.inventory.activeIndex,
+      layoutId: state.layoutId,
+      expectedQty: activeRecord.expectedQty,
+      forcedAnomaly: state.episode % 9 === 0,
+    });
+    const reconciled = reconcileScan(activeRecord, { ...reading, readAt: state.missionTime });
+    state.inventory.records = state.inventory.records.map((record, index) => index === state.inventory.activeIndex ? reconciled : record);
+    state.inventory.lastScan = reconciled;
+    state.inventory.summary = inventorySummary(state.inventory.records);
+    state.scanned = state.inventory.summary.binsScanned;
+    state.anomalies = state.inventory.summary.exceptions;
+    log(reconciled.anomaly
+      ? `⚠ Inventory exception · ${reconciled.bin} · variance ${reconciled.variance > 0 ? '+' : ''}${reconciled.variance}`
+      : `✓ Inventory reconciled · ${reconciled.bin} · ${reconciled.countedQty} units`);
+  }
   renderQueue();
   setText('scanned', state.scanned);
-  log(`✓ Scan verified · ${state.targetMeta.bin}`);
   state.routeIndex += 1;
   activateWaypoint();
   return true;
@@ -887,12 +932,13 @@ function endMission(success) {
   state.curve = state.curve.slice(-100);
   localStorage.setItem(storage.success, JSON.stringify(state.successHistory));
   localStorage.setItem(storage.curve, JSON.stringify(state.curve));
-  state.scanned = success ? 1 : 0;
   renderQueue();
   setText('scanned', state.scanned);
   drawChart();
   worker.postMessage({ type: 'checkpoint' });
-  log(success ? `✓ Mission docked · ${state.targetMeta.bin}` : `× Route timeout · ${state.targetMeta.bin}`);
+  const summary = state.inventory.summary;
+  const inventoryResult = summary.binsScanned ? `inventory ${(summary.accuracy * 100).toFixed(1)}% · ${summary.exceptions} exceptions` : 'inventory not reconciled';
+  log(success ? `✓ Mission docked · ${state.targetMeta.bin} · ${inventoryResult}` : `× Route timeout · ${state.targetMeta.bin} · ${inventoryResult}`);
   setTimeout(resetMission, 900);
 }
 
@@ -928,7 +974,7 @@ function tick(dt) {
   const batteryBefore = state.battery;
   state.battery = Math.max(0, state.battery - batteryDrain({ dt: simDt, speed: drone.v.length(), altitude: drone.p.y, payload: state.anomalies ? .5 : 0 }));
   state.lastStepReward = rewardStep({ previousDistance, distance: currentDistance, collision, reached: reached || scanCompleted, batteryUsed: batteryBefore - state.battery });
-  if (scanCompleted) state.lastStepReward += .25;
+  if (scanCompleted) state.lastStepReward += state.inventory.lastScan?.anomaly ? -.12 : .25;
   state.reward += state.lastStepReward;
   setText('reward', state.reward.toFixed(3));
   $('success').textContent = `${(successRate(state.successHistory) * 100).toFixed(1)}%`;

@@ -19,6 +19,36 @@ Warehouse digital twin
 
 The browser presents two views of the same episode. The operator sees a Three.js warehouse scene with a live route, racks, lidar rays and a scan beacon. The controller receives only normalized sensor values and never receives semantic DOM labels. The evaluator keeps the mission state privately so coverage, collision, battery and bin verification remain deterministic.
 
+## Autonomous inventory contract
+
+Flight is only useful to an operation when it produces a trustworthy stock record. Every
+mission therefore creates a deterministic ledger of target bins before takeoff. Each record has
+an immutable bin/SKU identity, an expected quantity and a lifecycle:
+
+```text
+PENDING → SCANNING → VERIFIED
+                    ↘ EXCEPTION → operator review
+```
+
+At the scan waypoint the drone must first satisfy the flight gates (position, velocity,
+clearance and dwell). The inventory adapter then returns `countedQty`, confidence and a read
+timestamp. `lib/inventory-core.mjs` reconciles that reading against the expected quantity and
+computes signed variance, absolute variance, unit totals, exception count and accuracy. The UI
+shows the same record in the queue and in the KPI strip, so an apparent successful flight cannot
+be mistaken for a verified stock count.
+
+The current adapter is a deterministic sensor **simulation**. It intentionally exercises a
+small number of controlled exceptions so the review path is visible and testable. A production
+adapter should supply barcode/RFID or RGB-D/OCR observations, preserve the same pure
+`reconcileScan()` contract, and then publish the result to the warehouse management system with
+an idempotency key (`facility + mission + bin + readAt`). No write is made to a real WMS from the
+public page.
+
+Operational promotion should require, at minimum, a high inventory accuracy target, a bounded
+exception queue, scan confidence above the configured threshold, and an explicit human review
+for every unresolved variance. Route success, battery margin and collision stops remain separate
+flight KPIs; they must not be collapsed into the inventory accuracy number.
+
 ## P1 mission contract
 
 An episode is no longer considered successful merely because the drone reaches a point. Each mission follows six deterministic checkpoints: `TAKEOFF`, `AISLE ENTRY`, `SCAN`, `AISLE EXIT`, `RETURN` and `DOCK`. The scan checkpoint requires the drone to be within 2.5 m of the bin, below 0.35 m/s, above 1.2 m of clearance and stable for two simulated seconds. Only after the scan is verified can the route return to the dock and close successfully. A geofence and collision edge detector apply a hover brake and record safety stops; a recovery assist is only allowed after three simulated seconds without meaningful progress and is also visible in telemetry.

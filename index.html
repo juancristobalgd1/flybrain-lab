@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#070b10">
   <meta name="description" content="VYYQ autonomous warehouse inventory flight simulator.">
   <title>VYYQ Warehouse Autonomy</title>
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
   <header class="topbar">
@@ -104,12 +104,18 @@
           <div><span>HOVER</span><i><b id="p5"></b></i></div>
         </div>
         <div class="inventory-panel">
-          <div class="panel-title"><span>INVENTORY QUEUE</span><b id="queueCount">03 OPEN</b></div>
+          <div class="panel-title"><span>INVENTORY LEDGER</span><b id="inventoryMode">AUTONOMOUS</b></div>
           <div id="inventoryRows" class="inventory-rows">
             <div><i class="scanning"></i><span>BIN A03 · 014</span><b>SCANNING</b></div>
             <div><i></i><span>BIN A03 · 015</span><b>QUEUED</b></div>
             <div><i></i><span>BIN A03 · 016</span><b>QUEUED</b></div>
           </div>
+          <div class="inventory-kpis" aria-label="Inventory reconciliation metrics">
+            <div><span>ACCURACY</span><strong id="inventoryAccuracy">—</strong></div>
+            <div><span>VARIANCE</span><strong id="inventoryVariance">—</strong></div>
+            <div><span>UNITS</span><strong id="inventoryUnits">—</strong></div>
+          </div>
+          <div class="inventory-read"><span id="currentSku">SKU —</span><b id="inventoryScanState">SENSOR READY</b></div>
         </div>
         <div class="decision"><span>CURRENT MOTOR OUTPUT</span><strong id="motorOutput">HOVER</strong><small id="confidence">confidence 0%</small></div>
       </aside>
@@ -121,6 +127,7 @@
       <article><span>ROUTE COVERAGE</span><strong id="coverage">0%</strong><small>current mission</small></article>
       <article><span>BINS SCANNED</span><strong id="scanned">0</strong><small>current mission</small></article>
       <article><span>ANOMALIES</span><strong id="anomalies">0</strong><small>awaiting review</small></article>
+      <article><span>INVENTORY ACCURACY</span><strong id="inventoryMetricAccuracy">—</strong><small id="inventoryMetricDetail">0/3 bins · 0 exceptions</small></article>
       <article><span>BATTERY</span><strong id="battery">100%</strong><small id="altitude">altitude 0.0 m</small></article>
       <article class="curve"><span>LEARNING CURVE</span><canvas id="chart"></canvas></article>
     </section>
@@ -149,14 +156,14 @@
         <span>LIDAR + IMU<small>18 normalized signals</small></span><b>→</b>
         <span>WAREHOUSE MAP<small>aisle + rack context</small></span><b>→</b>
         <span>FAST-WEIGHT CORE<small>directional memory · per mission</small></span><b>→</b>
-        <span>INVENTORY ACTIONS<small>scan · route · report</small></span>
+        <span>INVENTORY LEDGER<small>SKU · quantity · variance</small></span>
       </div>
-      <p class="disclaimer"><b>Scientific boundary.</b> This public demo runs a compact MaleCNS-inspired spiking proxy with an episodic fast-weight navigation memory in a Web Worker. The memory circuit is a computational hypothesis, not a validated biological emulation. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.</p>
+      <p class="disclaimer"><b>Scientific boundary.</b> This public demo runs a compact MaleCNS-inspired spiking proxy with an episodic fast-weight navigation memory in a Web Worker. The memory circuit is a computational hypothesis, not a validated biological emulation. The warehouse, flight dynamics and inventory readings are deterministic simulations; production would replace the sensor adapter with barcode/RFID or RGB-D/OCR and a WMS integration. No physical drone or warehouse system is connected.</p>
     </section>
   </main>
 
   <footer><span>VYYQ · AUTONOMOUS WAREHOUSE SYSTEM</span><span>THREE.JS · WEB WORKER · DIGITAL TWIN</span></footer>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-  <script type="module" src="app.js?v=22"></script>
+  <script type="module" src="app.js?v=23"></script>
 </body>
 </html>
