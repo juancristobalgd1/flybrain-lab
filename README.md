@@ -13,13 +13,15 @@ Append `?fresh=1` to the preview URL for a reproducible clean run. Without that 
 ## What is simulated
 
 - warehouse digital twin with five rack rows, shelves, cartons, dock and aisle guidance;
-- autonomous drone flight with thrust, yaw, altitude, drag and battery dynamics;
+- autonomous drone flight with thrust, yaw, altitude, drag, geofence and battery dynamics;
 - deterministic cycle-count missions targeting aisle/bin locations;
-- IMU plus six lidar rays for clearance and obstacle avoidance;
+- waypoint route from dock → aisle entry → scan → aisle exit → return → dock;
+- IMU plus six horizontal and two vertical lidar rays for clearance and obstacle avoidance;
 - 18 normalized sensor inputs and six motor outputs: forward, yaw left/right, climb, descend and hover;
-- route coverage, scan queue, bins verified, anomaly flag and mission-success telemetry;
+- stationary scan verification (position, velocity, clearance and dwell time), scan queue, anomaly flag and mission-success telemetry;
+- geofence brake, collision edge detection and return-to-dock completion gate;
 - reward-modulated eligibility updates on the motor adapter;
-- train/test episode split, learning curve, chase/orbit/map cameras and responsive mobile UI.
+- train/test episode split, learning curve, autonomous-vs-guided rate, chase/orbit/map cameras and responsive mobile UI.
 
 ## Scientific boundary
 

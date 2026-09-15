@@ -1,6 +1,6 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { ACTIONS, distance3, successRate, warehouseTargetForEpisode } from './lib/drone-core.mjs';
+import { ACTIONS, batteryDrain, distance3, planWarehouseRoute, rewardStep, routeProgress, scanReadiness, successRate, warehouseTargetForEpisode } from './lib/drone-core.mjs';
 
 const $ = id => document.getElementById(id);
 const setText = (id, value) => { const element = $(id); if (element) element.textContent = value; };
@@ -39,8 +39,17 @@ const state = {
   missionTime: 0,
   seed: 381,
   initialDistance: 1,
+  route: [],
+  routeIndex: 0,
+  scanIndex: 2,
+  scanDwell: 0,
+  scanConfirmed: false,
+  scanConfidence: 0,
   scanned: 0,
   anomalies: 0,
+  guidedDecisions: 0,
+  autonomousDecisions: 0,
+  safetyStops: 0,
   targetMeta: null,
   ending: false,
 };
@@ -262,7 +271,7 @@ targetGroup.add(targetCore, targetRing);
 scene.add(targetGroup);
 
 let routeLine = new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+  new THREE.BufferGeometry().setFromPoints(Array.from({ length: 6 }, () => new THREE.Vector3())),
   new THREE.LineDashedMaterial({ color: '#64dcff', dashSize: .7, gapSize: .45, transparent: true, opacity: .68 }),
 );
 routeLine.computeLineDistances();
@@ -270,7 +279,7 @@ scene.add(routeLine);
 
 const sensorGroup = new THREE.Group();
 const sensorLines = [];
-for (let i = 0; i < 6; i += 1) {
+for (let i = 0; i < 8; i += 1) {
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]),
     new THREE.LineBasicMaterial({ color: '#64dcff', transparent: true, opacity: .26 }),
@@ -313,6 +322,23 @@ function missionTarget() {
   return warehouseTargetForEpisode(state.episode, state.difficulty);
 }
 
+function currentWaypoint() {
+  return state.route[state.routeIndex] || state.route.at(-1) || drone.target;
+}
+
+function setMissionPhase() {
+  const waypoint = currentWaypoint();
+  setText('missionPhase', waypoint.phase || 'FLIGHT');
+  setText('scanStatus', state.scanConfirmed ? 'SCAN VERIFIED' : state.routeIndex === state.scanIndex ? 'SCAN STANDBY' : 'TRANSIT');
+  setText('safetyState', state.safetyStops ? `${state.safetyStops} STOPS` : 'ARMED');
+}
+
+function activateWaypoint() {
+  const waypoint = currentWaypoint();
+  drone.target.set(waypoint.x, waypoint.y, waypoint.z);
+  setMissionPhase();
+}
+
 function renderQueue() {
   const meta = state.targetMeta;
   const current = meta?.bin || 'A03 · 014';
@@ -334,19 +360,28 @@ function resetMission() {
   state.battery = 1;
   state.time = 0;
   state.missionTime = 0;
+  state.routeIndex = 0;
+  state.scanDwell = 0;
+  state.scanConfirmed = false;
+  state.scanConfidence = 0;
   state.scanned = 0;
   state.anomalies = state.episode % 9 === 0 ? 1 : 0;
+  state.guidedDecisions = 0;
+  state.autonomousDecisions = 0;
+  state.safetyStops = 0;
   state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
-  drone.target.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
-  drone.p.set(-31, 3.2, state.targetMeta.z);
+  drone.p.set(-32, 3.2, 6);
   drone.v.set(0, 0, 0);
   drone.yaw = 0;
   drone.collision = false;
   pendingAction = 5;
-  state.initialDistance = distance3(drone.p, drone.target);
-  targetGroup.position.copy(drone.target);
+  state.route = planWarehouseRoute(drone.p, state.targetMeta);
+  state.initialDistance = distance3(drone.p, state.targetMeta);
+  targetGroup.position.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
+  activateWaypoint();
+  updateRouteGeometry();
   targetRing.scale.setScalar(1);
   $('episode').textContent = state.episode.toLocaleString();
   $('phase').textContent = state.episode % 10 === 0 ? 'TEST' : 'TRAIN';
@@ -362,20 +397,20 @@ function resetMission() {
 
 function lidar() {
   return sensorLines.map((line, index) => {
+    const vertical = index >= 6;
     const angle = drone.yaw + (index - 2.5) * Math.PI / 5;
-    const dx = Math.cos(angle);
-    const dz = Math.sin(angle);
-    let hit = 12;
-    for (const obstacle of obstacles) {
-      const nearX = Math.abs(obstacle.x - drone.p.x - dx * 3);
-      const nearZ = Math.abs(obstacle.z - drone.p.z - dz * 3);
-      if (nearX < obstacle.w / 2 + 2 && nearZ < obstacle.d / 2 + 2) {
-        hit = Math.min(hit, Math.max(.6, Math.hypot(obstacle.x - drone.p.x, obstacle.z - drone.p.z) - Math.max(obstacle.w, obstacle.d) / 2));
+    const dx = vertical ? 0 : Math.cos(angle);
+    const dz = vertical ? 0 : Math.sin(angle);
+    let hit = vertical ? (index === 6 ? Math.max(.5, 10.5 - drone.p.y) : Math.max(.5, drone.p.y - .7)) : 12;
+    if (!vertical) {
+      for (let distance = .5; distance <= 12; distance += .25) {
+        const blocked = obstacles.some(obstacle => Math.abs(obstacle.x - (drone.p.x + dx * distance)) < obstacle.w / 2 + .55 && Math.abs(obstacle.z - (drone.p.z + dz * distance)) < obstacle.d / 2 + .55 && drone.p.y < obstacle.h + .5);
+        if (blocked) { hit = distance; break; }
       }
     }
     const points = line.geometry.attributes.position;
     points.setXYZ(0, drone.p.x, drone.p.y, drone.p.z);
-    points.setXYZ(1, drone.p.x + dx * hit, drone.p.y, drone.p.z + dz * hit);
+    points.setXYZ(1, drone.p.x + dx * hit, vertical ? drone.p.y + (index === 6 ? hit : -hit) : drone.p.y, drone.p.z + dz * hit);
     points.needsUpdate = true;
     line.material.color.setHex(hit < 2 ? 0xff6874 : 0x64dcff);
     return Math.min(1, hit / 12);
@@ -383,9 +418,10 @@ function lidar() {
 }
 
 function features() {
-  const dx = drone.target.x - drone.p.x;
-  const dy = drone.target.y - drone.p.y;
-  const dz = drone.target.z - drone.p.z;
+  const waypoint = currentWaypoint();
+  const dx = waypoint.x - drone.p.x;
+  const dy = waypoint.y - drone.p.y;
+  const dz = waypoint.z - drone.p.z;
   const bearing = Math.atan2(dz, dx);
   const angle = Math.atan2(Math.sin(bearing - drone.yaw), Math.cos(bearing - drone.yaw));
   return [
@@ -397,20 +433,22 @@ function features() {
     Math.min(1, Math.hypot(drone.v.x, drone.v.z) / 3),
     drone.v.y > 0 ? .7 : .3,
     state.battery,
-    ...lidar(),
+    ...lidar().slice(0, 6),
     state.collisions ? 1 : 0,
   ].slice(0, 18);
 }
 
 function teacher() {
-  const dx = drone.target.x - drone.p.x;
-  const dz = drone.target.z - drone.p.z;
+  const waypoint = currentWaypoint();
+  const dx = waypoint.x - drone.p.x;
+  const dz = waypoint.z - drone.p.z;
   const bearing = Math.atan2(dz, dx);
   const angle = Math.atan2(Math.sin(bearing - drone.yaw), Math.cos(bearing - drone.yaw));
-  if (drone.target.y - drone.p.y > .8) return 3;
-  if (drone.target.y - drone.p.y < -.8) return 4;
+  if (waypoint.y - drone.p.y > .8) return 3;
+  if (waypoint.y - drone.p.y < -.8) return 4;
+  if (state.routeIndex === state.scanIndex && distance3(drone.p, waypoint) < 2.8) return 5;
   if (Math.abs(angle) > .27) return angle > 0 ? 1 : 2;
-  if (lidar().some(value => value < .18) && drone.p.y < 6.5) return 3;
+  if (lidar().slice(0, 6).some(value => value < .18) && drone.p.y < 6.5) return 3;
   return 0;
 }
 
@@ -432,44 +470,83 @@ function applyAction(action, dt) {
 }
 
 function checkCollision() {
-  drone.collision = drone.p.y < .72;
-  if (drone.collision) {
+  const wasColliding = drone.collision;
+  let hit = drone.p.y < .72;
+  if (hit) {
     drone.p.y = .72;
     drone.v.multiplyScalar(-.25);
   }
   for (const obstacle of obstacles) {
     if (Math.abs(drone.p.x - obstacle.x) < obstacle.w / 2 + .65 && Math.abs(drone.p.z - obstacle.z) < obstacle.d / 2 + .65 && drone.p.y < obstacle.h + .5) {
-      drone.collision = true;
+      hit = true;
       drone.v.multiplyScalar(-.35);
-      state.collisions += 1;
     }
+  }
+  drone.collision = hit;
+  if (hit && !wasColliding) {
+    state.collisions += 1;
+    state.safetyStops += 1;
+    pendingAction = 5;
   }
   return drone.collision;
 }
 
+function enforceGeofence() {
+  const before = drone.p.clone();
+  drone.p.x = Math.max(-33, Math.min(33, drone.p.x));
+  drone.p.y = Math.max(.72, Math.min(10.5, drone.p.y));
+  drone.p.z = Math.max(-29, Math.min(29, drone.p.z));
+  if (!before.equals(drone.p)) {
+    drone.v.multiplyScalar(.2);
+    state.safetyStops += 1;
+    pendingAction = 5;
+  }
+}
+
+function updateRouteGeometry() {
+  const points = routeLine.geometry.attributes.position;
+  state.route.forEach((point, index) => points.setXYZ(index, index === 0 ? drone.p.x : point.x, index === 0 ? drone.p.y : point.y, index === 0 ? drone.p.z : point.z));
+  for (let index = state.route.length; index < 6; index += 1) points.setXYZ(index, 0, 0, 0);
+  points.needsUpdate = true;
+  routeLine.computeLineDistances();
+}
+
+function advanceWaypointIfReady(navDistance) {
+  const waypoint = currentWaypoint();
+  if (state.routeIndex === state.scanIndex) return false;
+  if (navDistance > (waypoint.phase === 'DOCK' ? .85 : 1.05) || state.routeIndex >= state.route.length - 1) return false;
+  state.routeIndex += 1;
+  activateWaypoint();
+  return true;
+}
+
 function updateRoute() {
-  const distance = distance3(drone.p, drone.target);
-  const progress = Math.max(0, Math.min(100, (1 - distance / Math.max(state.initialDistance, 1)) * 100));
+  const waypoint = currentWaypoint();
+  const navDistance = distance3(drone.p, waypoint);
+  const scanTarget = state.route[state.scanIndex] || state.targetMeta || waypoint;
+  const distance = distance3(drone.p, scanTarget);
+  const progress = routeProgress(drone.p, state.route, state.routeIndex) * 100;
   $('routeProgress').textContent = `${progress.toFixed(0)}%`;
-  $('routeDetail').textContent = `${progress >= 90 ? 24 : Math.round(progress / 100 * 24)} / 24 scan points`;
+  $('routeDetail').textContent = `${state.routeIndex} / ${Math.max(1, state.route.length - 1)} route checkpoints`;
   $('routeBar').style.width = `${progress}%`;
   $('coverage').textContent = `${progress.toFixed(0)}%`;
   $('distance').textContent = `${distance.toFixed(1)} m`;
-  const bearingRad = Math.atan2(drone.target.z - drone.p.z, drone.target.x - drone.p.x) - drone.yaw;
+  const bearingRad = Math.atan2(scanTarget.z - drone.p.z, scanTarget.x - drone.p.x) - drone.yaw;
   const bearing = THREE.MathUtils.radToDeg(Math.atan2(Math.sin(bearingRad), Math.cos(bearingRad)));
   $('bearing').textContent = `bearing ${Math.round(bearing)}°`;
   $('clearance').textContent = `${(Math.min(...lidar()) * 12).toFixed(1)} m`;
   $('localization').textContent = `${Math.max(96, 99.4 - state.collisions * 1.4).toFixed(1)}%`;
   $('velocity').textContent = `${Math.hypot(drone.v.x, drone.v.z, drone.v.y).toFixed(1)} m/s`;
-  const routePoints = routeLine.geometry.attributes.position;
-  routePoints.setXYZ(0, drone.p.x, drone.p.y, drone.p.z);
-  routePoints.setXYZ(1, drone.target.x, drone.target.y, drone.target.z);
-  routePoints.needsUpdate = true;
-  routeLine.computeLineDistances();
+  updateRouteGeometry();
+  setMissionPhase();
+  setText('scanConfidence', state.scanConfirmed ? 'VERIFIED' : `${Math.round(state.scanConfidence * 100)}%`);
+  setText('autonomyRate', `${Math.round((state.autonomousDecisions / Math.max(1, state.autonomousDecisions + state.guidedDecisions)) * 100)}%`);
 }
 
 function updateUI(data) {
   const action = ACTIONS[data.action];
+  if (data.guided) state.guidedDecisions += 1;
+  else state.autonomousDecisions += 1;
   $('action').textContent = action;
   $('motorOutput').textContent = action;
   $('confidence').textContent = `confidence ${Math.round(Math.max(...data.probs) * 100)}%`;
@@ -598,6 +675,32 @@ function log(message) {
   while ($('eventLog').children.length > 5) $('eventLog').lastChild.remove();
 }
 
+function updateScan(dt) {
+  if (state.routeIndex !== state.scanIndex || state.scanConfirmed) return false;
+  const distance = distance3(drone.p, currentWaypoint());
+  const speed = drone.v.length();
+  const clearance = Math.min(...lidar().map(value => value * 12));
+  const simulationStep = dt * state.speed;
+  let readiness = scanReadiness({ distance, speed, clearance, dwell: state.scanDwell });
+  if (readiness.inPosition && readiness.stable && readiness.safe) {
+    state.scanDwell = Math.min(2, state.scanDwell + simulationStep);
+  } else {
+    state.scanDwell = Math.max(0, state.scanDwell - simulationStep * .5);
+  }
+  readiness = scanReadiness({ distance, speed, clearance, dwell: state.scanDwell });
+  state.scanConfidence = readiness.inPosition ? readiness.progress : 0;
+  if (!readiness.ready) return false;
+  state.scanConfirmed = true;
+  state.scanned = 1;
+  state.scanConfidence = 1;
+  renderQueue();
+  setText('scanned', state.scanned);
+  log(`✓ Scan verified · ${state.targetMeta.bin}`);
+  state.routeIndex += 1;
+  activateWaypoint();
+  return true;
+}
+
 const worker = new Worker('drone-brain-worker.js?v=2');
 worker.onmessage = ({ data }) => {
   if (data.type === 'ready') {
@@ -625,8 +728,10 @@ function endMission(success) {
   localStorage.setItem(storage.curve, JSON.stringify(state.curve));
   state.scanned = success ? 1 : 0;
   renderQueue();
+  setText('scanned', state.scanned);
+  drawChart();
   worker.postMessage({ type: 'checkpoint' });
-  log(success ? `✓ Scan verified · ${state.targetMeta.bin}` : `× Route timeout · ${state.targetMeta.bin}`);
+  log(success ? `✓ Mission docked · ${state.targetMeta.bin}` : `× Route timeout · ${state.targetMeta.bin}`);
   setTimeout(resetMission, 900);
 }
 
@@ -635,23 +740,30 @@ function tick(dt) {
   state.time += dt * state.speed;
   state.missionTime += dt * state.speed;
   decisionClock += dt * state.speed;
-  const previousDistance = distance3(drone.p, drone.target);
+  const previousDistance = distance3(drone.p, currentWaypoint());
   if (decisionClock > .12) {
     worker.postMessage({ type: 'step', features: features(), reward: state.lastStepReward, train: state.episode % 10 !== 0, teacher: teacher() });
     decisionClock = 0;
   }
   applyAction(pendingAction, dt * state.speed);
+  enforceGeofence();
   const collision = checkCollision();
-  const currentDistance = distance3(drone.p, drone.target);
-  state.battery = Math.max(0, state.battery - dt * .0008);
-  state.lastStepReward = (currentDistance < 2.5 ? 2 : 0) + (previousDistance - currentDistance) * .12 - (collision ? .8 : 0) - .001;
+  const currentDistance = distance3(drone.p, currentWaypoint());
+  const reached = advanceWaypointIfReady(currentDistance);
+  const scanCompleted = updateScan(dt);
+  const simDt = dt * state.speed;
+  const batteryBefore = state.battery;
+  state.battery = Math.max(0, state.battery - batteryDrain({ dt: simDt, speed: drone.v.length(), altitude: drone.p.y, payload: state.anomalies ? .5 : 0 }));
+  state.lastStepReward = rewardStep({ previousDistance, distance: currentDistance, collision, reached: reached || scanCompleted, batteryUsed: batteryBefore - state.battery });
+  if (scanCompleted) state.lastStepReward += .25;
   state.reward += state.lastStepReward;
   setText('reward', state.reward.toFixed(3));
   $('success').textContent = `${(successRate(state.successHistory) * 100).toFixed(1)}%`;
   $('anomalies').textContent = state.anomalies;
   updateRoute();
-  if (!state.ending && currentDistance < 2.5) endMission(true);
-  else if (!state.ending && (state.missionTime > 60 || state.battery <= 0)) endMission(false);
+  const atDock = state.routeIndex === state.route.length - 1 && distance3(drone.p, currentWaypoint()) <= .85;
+  if (!state.ending && state.scanConfirmed && atDock) endMission(true);
+  else if (!state.ending && (state.missionTime > 90 || state.battery <= 0)) endMission(false);
 }
 
 function animate(now) {
