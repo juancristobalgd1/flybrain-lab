@@ -795,7 +795,7 @@ function updateScan(dt) {
   return true;
 }
 
-const worker = new Worker('drone-brain-worker.js?v=4', { type: 'module' });
+const worker = new Worker('drone-brain-worker.js?v=5', { type: 'module' });
 worker.onmessage = ({ data }) => {
   if (data.type === 'ready') {
     state.fastWeight = { ...state.fastWeight, ...data.fastWeight };

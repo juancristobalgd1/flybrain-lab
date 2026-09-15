@@ -1,4 +1,4 @@
-import{createFastWeightMemory,fastWeightActionBias,homeVector,resetFastWeightMemory,updateFastWeight}from'./lib/fast-weight-memory.mjs';
+import{FAST_WEIGHT_DEFAULTS,createFastWeightMemory,fastWeightActionBias,homeVector,resetFastWeightMemory,updateFastWeight}from'./lib/fast-weight-memory.mjs';
 
 const N=512,INPUTS=18,ACTIONS=6,STEPS=10;
 let rng,ptr,post,weights,v,current,spikes,last,rates,readout,eligibility,fastMemory;
@@ -18,7 +18,7 @@ function build(seed=381){
   v=new Float32Array(N);current=new Float32Array(N);spikes=new Uint8Array(N);last=new Uint8Array(N);rates=new Uint8Array(N);readout=new Float32Array(ACTIONS*N);eligibility=new Float32Array(ACTIONS*N);fastMemory=createFastWeightMemory();
   for(let i=0;i<readout.length;i++)readout[i]=(rng()-.5)*.08;
   resetNeuralState(seed);
-  postMessage({type:'ready',neurons:N,edges:post.length,fastWeight:{columns:fastMemory.length,decayTau:18,resets:fastWeightResets}});
+  postMessage({type:'ready',neurons:N,edges:post.length,fastWeight:{columns:fastMemory.length,decayTau:FAST_WEIGHT_DEFAULTS.decayTau,resets:fastWeightResets}});
 }
 
 function learn(reward,train){
