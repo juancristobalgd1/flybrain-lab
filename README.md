@@ -21,11 +21,12 @@ Append `?fresh=1` to the preview URL for a reproducible clean run. Without that 
 - stationary scan verification (position, velocity, clearance and dwell time), scan queue, anomaly flag and mission-success telemetry;
 - geofence brake, collision edge detection and return-to-dock completion gate;
 - reward-modulated eligibility updates on the motor adapter;
+- episodic directional fast-weight memory: a dopamine-gated outbound write, continuous decay and a bounded homing read during the return leg;
 - train/test episode split, learning curve, autonomous-vs-guided rate, chase/orbit/map cameras and responsive mobile UI.
 
 ## Scientific boundary
 
-This is an executable sparse-spiking **proxy** inspired by the MaleCNS project. It does not claim to run the complete 166,700-neuron biological connectome. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.
+This is an executable sparse-spiking **proxy** inspired by the MaleCNS project. It does not claim to run the complete 166,700-neuron biological connectome. The fast-weight module is a computational hypothesis inspired by the hΔH/hΔA/hΔI/hΔG/hΔM discussion: it stores a short-lived directional vector and exposes it to the motor adapter, but it is not a validated biological emulation. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.
 
 ## Run locally
 
@@ -39,9 +40,11 @@ Open `http://localhost:4173`.
 
 - `index.html` — VYYQ operations dashboard and warehouse telemetry UI.
 - `app.js` — Three.js warehouse scene, flight dynamics, sensors and mission state.
-- `drone-brain-worker.js` — sparse LIF reservoir and reward-modulated motor learning.
+- `drone-brain-worker.js` — sparse LIF reservoir, reward-modulated motor learning and fast-weight navigation memory.
 - `lib/drone-core.mjs` — pure geometry, target, reward and warehouse mission functions.
+- `lib/fast-weight-memory.mjs` — pure directional store, decay, home-vector inversion and bounded motor bias.
 - `tests/drone-core.test.mjs` — deterministic invariants.
+- `tests/fast-weight-memory.test.mjs` — write-gate, decay, inversion, reset and policy-read invariants.
 - `trading.html` — archived paper-trading experiment kept for comparison.
 
 ## License

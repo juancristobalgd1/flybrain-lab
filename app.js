@@ -52,6 +52,7 @@ const state = {
   safetyStops: 0,
   stallTime: 0,
   recoveryTime: 0,
+  fastWeight: { vectorX: 0, vectorZ: 0, homeX: 0, homeZ: 0, magnitude: 0, heading: 0, confidence: 0, decay: 1, writeGate: false, dopamine: 0, returnMode: false, used: false, writes: 0, resets: 0, meanDelta: 0 },
   targetMeta: null,
   ending: false,
 };
@@ -279,6 +280,14 @@ let routeLine = new THREE.Line(
 routeLine.computeLineDistances();
 scene.add(routeLine);
 
+const memoryArrow = new THREE.ArrowHelper(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(), 0, 0xffbf69, .5, .24);
+memoryArrow.line.material.transparent = true;
+memoryArrow.line.material.opacity = .86;
+memoryArrow.cone.material.transparent = true;
+memoryArrow.cone.material.opacity = .9;
+memoryArrow.visible = false;
+scene.add(memoryArrow);
+
 const sensorGroup = new THREE.Group();
 const sensorLines = [];
 for (let i = 0; i < 8; i += 1) {
@@ -341,6 +350,36 @@ function activateWaypoint() {
   setMissionPhase();
 }
 
+function updateMemoryVisual() {
+  const memory = state.fastWeight;
+  const direction = new THREE.Vector3(memory.homeX, 0, memory.homeZ);
+  const length = Math.min(10, Math.max(0, memory.magnitude * .9));
+  if (direction.lengthSq() < 1e-5 || length < .05) {
+    memoryArrow.visible = false;
+    return;
+  }
+  memoryArrow.visible = true;
+  memoryArrow.position.copy(drone.p);
+  memoryArrow.setDirection(direction.normalize());
+  memoryArrow.setLength(length, .5, .24);
+}
+
+function updateFastWeightUI() {
+  const memory = state.fastWeight;
+  const degrees = THREE.MathUtils.radToDeg(memory.heading || 0);
+  setText('homeVector', memory.magnitude > .05 ? `${memory.magnitude.toFixed(1)} m / ${Math.round(degrees)}°` : '—');
+  setText('memoryWrites', memory.writes.toLocaleString());
+  setText('memoryDecay', `${Math.round((memory.decay || 0) * 100)}%`);
+  setText('homingConfidence', `${Math.round((memory.confidence || 0) * 100)}%`);
+  const gate = memory.writeGate ? 'DOPAMINE WRITE' : memory.returnMode && memory.used ? 'HOMING READ' : memory.resets ? 'RESET READY' : 'STANDBY';
+  setText('memoryGate', gate);
+  const gateElement = $('memoryGate');
+  if (gateElement) gateElement.style.color = memory.writeGate ? 'var(--amber)' : memory.returnMode && memory.used ? 'var(--lime)' : 'var(--cyan)';
+  const bar = $('memoryBar');
+  if (bar) bar.style.width = `${Math.min(100, memory.magnitude / 3 * 100)}%`;
+  updateMemoryVisual();
+}
+
 function renderQueue() {
   const meta = state.targetMeta;
   const current = meta?.bin || 'A03 · 014';
@@ -373,6 +412,7 @@ function resetMission() {
   state.safetyStops = 0;
   state.stallTime = 0;
   state.recoveryTime = 0;
+  state.fastWeight = { ...state.fastWeight, vectorX: 0, vectorZ: 0, homeX: 0, homeZ: 0, magnitude: 0, heading: 0, confidence: 0, decay: 1, writeGate: false, dopamine: 0, returnMode: false, used: false, writes: 0, meanDelta: 0, resets: state.fastWeight.resets + 1 };
   state.ending = false;
   state.seed = (state.episode * 104729 + 7919) >>> 0;
   state.targetMeta = missionTarget();
@@ -386,6 +426,9 @@ function resetMission() {
   targetGroup.position.set(state.targetMeta.x, state.targetMeta.y, state.targetMeta.z);
   activateWaypoint();
   updateRouteGeometry();
+  worker.postMessage({ type: workerInitialized ? 'reset' : 'init', seed: state.seed });
+  workerInitialized = true;
+  updateFastWeightUI();
   targetRing.scale.setScalar(1);
   $('episode').textContent = state.episode.toLocaleString();
   $('phase').textContent = state.episode % 10 === 0 ? 'TEST' : 'TRAIN';
@@ -440,6 +483,23 @@ function features() {
     ...lidar().slice(0, 6),
     state.collisions ? 1 : 0,
   ].slice(0, 18);
+}
+
+function navigationObservation(dt) {
+  const speed = Math.hypot(drone.v.x, drone.v.z);
+  const heading = speed > .03 ? Math.atan2(drone.v.z, drone.v.x) : drone.yaw;
+  const writeGate = speed > .03 && !drone.collision && state.recoveryTime <= 0;
+  const sensorQuality = drone.collision ? .25 : state.recoveryTime ? .6 : 1;
+  return {
+    heading,
+    speed,
+    dt: Math.min(.5, Math.max(.02, dt)),
+    dopamine: writeGate ? Math.min(1, speed / 1.2) * sensorQuality : 0,
+    writeGate,
+    yaw: drone.yaw,
+    returnMode: state.scanConfirmed && state.routeIndex > state.scanIndex,
+    memoryGain: state.recoveryTime ? .9 : .6,
+  };
 }
 
 function teacher() {
@@ -562,6 +622,7 @@ function updateUI(data) {
   $('battery').textContent = `${Math.round(state.battery * 100)}%`;
   $('altitude').textContent = `altitude ${drone.p.y.toFixed(1)} m`;
   updateRoute();
+  updateFastWeightUI();
   drawBrain(data);
 }
 
@@ -677,6 +738,15 @@ function drawFallback() {
   fallbackCtx.arc(target.x, target.y, 7, 0, Math.PI * 2);
   fallbackCtx.fill();
   const position = projectFallback(drone.p.x, drone.p.z, drone.p.y, width, height);
+  if (state.fastWeight.magnitude > .05) {
+    const home = projectFallback(drone.p.x + state.fastWeight.homeX * .7, drone.p.z + state.fastWeight.homeZ * .7, drone.p.y, width, height);
+    fallbackCtx.strokeStyle = '#ffbf69cc';
+    fallbackCtx.lineWidth = 2;
+    fallbackCtx.beginPath();
+    fallbackCtx.moveTo(position.x, position.y);
+    fallbackCtx.lineTo(home.x, home.y);
+    fallbackCtx.stroke();
+  }
   fallbackCtx.save();
   fallbackCtx.translate(position.x, position.y);
   fallbackCtx.rotate(-drone.yaw);
@@ -723,9 +793,11 @@ function updateScan(dt) {
   return true;
 }
 
-const worker = new Worker('drone-brain-worker.js?v=2');
+const worker = new Worker('drone-brain-worker.js?v=3', { type: 'module' });
 worker.onmessage = ({ data }) => {
   if (data.type === 'ready') {
+    state.fastWeight = { ...state.fastWeight, ...data.fastWeight };
+    updateFastWeightUI();
     const checkpoint = readJson(storage.checkpoint, null);
     if (checkpoint) worker.postMessage({ type: 'restore', data: checkpoint });
     return;
@@ -734,10 +806,10 @@ worker.onmessage = ({ data }) => {
   if (data.type === 'checkpoint') localStorage.setItem(storage.checkpoint, JSON.stringify(data.data));
   if (data.type === 'decision') {
     pendingAction = data.action;
+    state.fastWeight = { ...state.fastWeight, ...data.fastWeight };
     updateUI(data);
   }
 };
-worker.postMessage({ type: 'init', seed: 381 });
 
 function endMission(success) {
   if (state.ending) return;
@@ -764,7 +836,7 @@ function tick(dt) {
   decisionClock += dt * state.speed;
   const previousDistance = distance3(drone.p, currentWaypoint());
   if (decisionClock > .12) {
-    worker.postMessage({ type: 'step', features: features(), reward: state.lastStepReward, train: state.episode % 10 !== 0, teacher: teacher() });
+    worker.postMessage({ type: 'step', features: features(), reward: state.lastStepReward, train: state.episode % 10 !== 0, teacher: teacher(), navigation: navigationObservation(decisionClock) });
     decisionClock = 0;
   }
   if (state.recoveryTime > 0) pendingAction = teacher();
@@ -804,6 +876,7 @@ function animate(now) {
   const dt = Math.min(.05, (now - previousTime) / 1000);
   previousTime = now;
   tick(dt);
+  updateMemoryVisual();
   if ($('cameraLabel').textContent === 'CHASE VIEW') {
     const offset = new THREE.Vector3(-Math.cos(drone.yaw) * 9, 5.6, -Math.sin(drone.yaw) * 9);
     camera.position.lerp(drone.p.clone().add(offset), .06);

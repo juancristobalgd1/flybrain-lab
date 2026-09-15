@@ -130,6 +130,19 @@ button { cursor: pointer; }
 .ops-strip strong { display: block; margin-top: 5px; color: var(--cyan); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .ops-strip div:nth-child(2) strong { color: var(--lime); }
 .ops-strip div:nth-child(3) strong { color: #dce5e8; }
+.memory-panel { margin: 7px 15px 12px; border: 1px solid var(--line); background: #0d151b; }
+.memory-panel .panel-title { padding-block: 9px; }
+.memory-panel .panel-title b { color: var(--cyan); font-weight: 400; }
+.memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
+.memory-grid div { min-width: 0; padding: 9px 11px; border-top: 1px solid var(--line-soft); }
+.memory-grid div:nth-child(odd) { border-right: 1px solid var(--line-soft); }
+.memory-grid span { display: block; color: #66757e; font: 7px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+.memory-grid strong { display: block; margin-top: 5px; color: #dce5e8; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.memory-grid div:first-child strong, .memory-grid div:last-child strong { color: var(--amber); }
+.memory-bar { height: 3px; margin: 0 11px 7px; background: #202b32; }
+.memory-bar i { display: block; height: 100%; }
+.memory-bar b { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--amber), var(--lime)); box-shadow: 0 0 9px #ffbf6966; transition: width .2s; }
+.memory-note { display: block; padding: 0 11px 9px; color: #5f6e76; font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .neural-title, .policy-title { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 15px 0; }
 .neural-title small, .policy-title small { color: #5f6e76; font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
 #brain { display: block; width: 100%; height: 208px; margin-top: -2px; background: radial-gradient(circle at 50% 45%, #132732 0, transparent 68%); }
@@ -182,6 +195,7 @@ footer { padding: 25px 28px 40px; display: flex; justify-content: space-between;
 }
 @media (max-width: 900px) {
   .facility { display: none; }.workspace { display: block; }.viewport-wrap { height: 580px; border-right: 0; border-bottom: 1px solid var(--line); }.telemetry { display: grid; grid-template-columns: 1.1fr 1fr; }.telemetry .section-head, .status-grid, .ops-strip, .neural-title, #brain, .brain-key { grid-column: 1 / -1; }.policy-title { grid-column: 1; }.policy { grid-column: 1; }.inventory-panel { grid-column: 2; grid-row: 3 / 5; }.decision { grid-column: 2; }.hero-copy { max-width: 36vw; }
+  .telemetry .memory-panel { grid-column: 1 / -1; }
 }
 @media (max-width: 650px) {
   .topbar { height: 62px; padding: 0 15px; }.brand-name b, .source { display: none; }.top-actions { gap: 0; }.hero { display: block; padding: 49px 16px 34px; }.hero h1 { font-size: 53px; }.hero-copy { max-width: none; margin-top: 28px; }.mission-bar { grid-template-columns: 1fr 1fr; }.mission-bar div:nth-child(2n) { border-right: 0; }.mission-bar div:nth-child(n + 3) { border-top: 1px solid var(--line); }.mission-bar div:last-child { grid-column: 1 / -1; }

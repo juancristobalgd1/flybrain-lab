@@ -57,7 +57,7 @@ canvas{width:100%;display:block}
 .risk{padding:22px 26px;border-bottom:1px solid var(--line)}
 .risk-head{display:flex;justify-content:space-between;margin-bottom:18px;color:#858c94}
 .risk-head strong{color:var(--lime)}
-.risk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.risk-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:20px}
 .risk label{color:#7d848c;font:9px monospace}
 .risk label b{float:right;color:white}
 .risk .off{color:var(--red)}

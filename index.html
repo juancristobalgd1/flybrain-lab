@@ -33,8 +33,8 @@
     <section class="mission-bar" aria-label="Mission overview">
       <div><span>MISSION</span><strong id="missionLabel">CYCLE COUNT</strong></div>
       <div><span>FLIGHT MODE</span><strong id="flightMode">AISLE FOLLOW</strong></div>
-      <div><span>SENSORS</span><strong>IMU + 6 LIDAR</strong></div>
-      <div><span>CONTROLLER</span><strong>512N LIF PROXY</strong></div>
+      <div><span>SENSORS</span><strong>IMU + 8 LIDAR</strong></div>
+      <div><span>CONTROLLER</span><strong>512N LIF + FAST WEIGHTS</strong></div>
       <div><span>SAFETY</span><strong>SIMULATION ONLY</strong></div>
     </section>
 
@@ -78,6 +78,17 @@
           <div><span>SCAN</span><strong id="scanConfidence">0%</strong></div>
           <div><span>AUTONOMY</span><strong id="autonomyRate">0%</strong></div>
           <div><span>SAFETY</span><strong id="safetyState">ARMED</strong></div>
+        </div>
+        <div class="memory-panel" aria-label="Fast-weight navigation memory">
+          <div class="panel-title"><span>FAST-WEIGHT MEMORY</span><b id="memoryGate">RESET READY</b></div>
+          <div class="memory-grid">
+            <div><span>HOME VECTOR</span><strong id="homeVector">—</strong></div>
+            <div><span>WRITES</span><strong id="memoryWrites">0</strong></div>
+            <div><span>DECAY</span><strong id="memoryDecay">100%</strong></div>
+            <div><span>HOMING</span><strong id="homingConfidence">0%</strong></div>
+          </div>
+          <div class="memory-bar"><i><b id="memoryBar"></b></i></div>
+          <small class="memory-note">hΔH store · hΔM / hΔI return path</small>
         </div>
         <div class="neural-title"><span>NEURAL ACTIVITY</span><small>512N RESERVOIR · LIVE</small></div>
         <canvas id="brain" aria-label="Live spiking neural network activity"></canvas>
@@ -124,17 +135,17 @@
     <section class="method">
       <div><p class="eyebrow">OPERATIONS LOOP</p><h2>See the stock.<br><em>Move with intent.</em></h2></div>
       <div class="pipeline">
-        <span>LIDAR + IMU<small>15 normalized signals</small></span><b>→</b>
+        <span>LIDAR + IMU<small>18 normalized signals</small></span><b>→</b>
         <span>WAREHOUSE MAP<small>aisle + rack context</small></span><b>→</b>
-        <span>SPARSE LIF CORE<small>512 neurons · fixed graph</small></span><b>→</b>
+        <span>FAST-WEIGHT CORE<small>directional memory · per mission</small></span><b>→</b>
         <span>INVENTORY ACTIONS<small>scan · route · report</small></span>
       </div>
-      <p class="disclaimer"><b>Scientific boundary.</b> This public demo runs a compact MaleCNS-inspired spiking proxy in a Web Worker. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.</p>
+      <p class="disclaimer"><b>Scientific boundary.</b> This public demo runs a compact MaleCNS-inspired spiking proxy with an episodic fast-weight navigation memory in a Web Worker. The memory circuit is a computational hypothesis, not a validated biological emulation. The warehouse, flight dynamics and inventory counts are deterministic simulations; no physical drone or warehouse system is connected.</p>
     </section>
   </main>
 
   <footer><span>VYYQ · AUTONOMOUS WAREHOUSE SYSTEM</span><span>THREE.JS · WEB WORKER · DIGITAL TWIN</span></footer>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-  <script type="module" src="app.js?v=17"></script>
+  <script type="module" src="app.js?v=18"></script>
 </body>
 </html>
